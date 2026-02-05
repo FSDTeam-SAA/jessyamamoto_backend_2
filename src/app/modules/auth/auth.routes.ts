@@ -1,7 +1,8 @@
 import express from 'express';
 import { authController } from './auth.controller';
-import auth from '../../middlewares/auth';
+
 import { userRole } from '../user/user.constant';
+import { auth } from '../../middlewares/auth';
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ router.post('/reset-password', authController.resetPassword);
 router.post('/logout', authController.logoutUser);
 router.post(
   '/change-password',
-  auth(userRole.admin, userRole.user, userRole.job),
+  auth(userRole.admin, userRole['find care'], userRole['find job']),
   authController.changePassword,
 );
 

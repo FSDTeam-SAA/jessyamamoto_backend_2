@@ -12,7 +12,7 @@ declare global {
   }
 }
 
-const auth = (...role: string[]) => {
+export const auth = (...role: string[]) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       const token = req.headers.authorization?.split(' ')[1];
@@ -44,4 +44,34 @@ const auth = (...role: string[]) => {
   };
 };
 
-export default auth;
+export const serviceAuth = (...roles: string[]) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authHeader = req.headers.authorization;
+
+      if (!authHeader?.startsWith('Bearer ')) {
+        req.user = undefined; // token নেই
+        return next();
+      }
+
+      const token = authHeader.split(' ')[1];
+
+      const verifiedToken = jwtHelpers.verifyToken(
+        token as string,
+        config.jwt.accessTokenSecret as Secret,
+      ) as JwtPayload;
+
+      if (
+        roles.length &&
+        (!verifiedToken.role || !roles.includes(verifiedToken.role))
+      ) {
+        throw new AppError(403, 'Forbidden');
+      }
+
+      req.user = verifiedToken;
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+};
