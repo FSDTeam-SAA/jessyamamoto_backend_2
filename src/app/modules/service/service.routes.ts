@@ -11,4 +11,10 @@ router.post(
   serviceController.registerServiceController,
 );
 
+router.get(
+  '/service-base-user/:categoryId',
+  serviceAuth(userRole['find care'], userRole['find job']),
+  serviceController.serviceBaseUserController,
+);
+
 export const serviceRouter = router;
