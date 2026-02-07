@@ -203,11 +203,15 @@ import AppError from '../../error/appError';
 import Stripe from 'stripe';
 import config from '../../config';
 import mongoose from 'mongoose';
+import pagination, { IOption } from '../../helper/pagenation';
 
 const stripe = new Stripe(config.stripe.secretKey!);
 
-const registerServiceAndSubscription = async (payload: any, userId?: string) => {
-  /* ================= 1️⃣ GET OR CREATE USER ================= */
+const registerServiceAndSubscription = async (
+  payload: any,
+  userId?: string,
+) => {
+  /* ================= GET OR CREATE USER ================= */
   let user = null;
 
   if (userId) {
@@ -216,7 +220,10 @@ const registerServiceAndSubscription = async (payload: any, userId?: string) => 
   } else {
     // First-time user
     if (!payload.email || !payload.firstName || !payload.role) {
-      throw new AppError(400, 'Email, firstName and role are required for new users');
+      throw new AppError(
+        400,
+        'Email, firstName and role are required for new users',
+      );
     }
 
     user = await User.findOne({ email: payload.email });
@@ -232,17 +239,28 @@ const registerServiceAndSubscription = async (payload: any, userId?: string) => 
     }
   }
 
-  /* ================= 2️⃣ SUBSCRIPTION STATE ================= */
+  /* ================= SUBSCRIPTION STATE ================= */
   const now = new Date();
   const hasActiveSubscription =
-    user.isSubscription && user.subscriptionExpiry && user.subscriptionExpiry > now;
+    user.isSubscription &&
+    user.subscriptionExpiry &&
+    user.subscriptionExpiry > now;
 
-  /* ================= 3️⃣ BLOCK DOUBLE SUBSCRIBE ================= */
-  if (hasActiveSubscription && payload.subscriptionId) {
+  /* ================= BLOCK DOUBLE SUBSCRIBE ================= */
+
+  if (
+    hasActiveSubscription &&
+    payload.subscriptionId &&
+    payload.forceSubscribe === true
+  ) {
     throw new AppError(400, 'You already have an active subscription');
   }
 
-  /* ================= 4️⃣ STRIPE CHECKOUT ================= */
+  // if (hasActiveSubscription && payload.subscriptionId) {
+  //   throw new AppError(400, 'You already have an active subscription');
+  // }
+
+  /* ================= STRIPE CHECKOUT ================= */
   let checkoutSession: Stripe.Checkout.Session | null = null;
   let subscriptionDoc: any = null;
 
@@ -277,7 +295,7 @@ const registerServiceAndSubscription = async (payload: any, userId?: string) => 
     });
   }
 
-  /* ================= 5️⃣ DB TRANSACTION ================= */
+  /* ================= DB TRANSACTION ================= */
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -354,7 +372,103 @@ const registerServiceAndSubscription = async (payload: any, userId?: string) => 
   }
 };
 
+const serviceBaseUser = async (
+  categoryId: string,
+  params: any,
+  options: IOption,
+) => {
+  const { searchTerm, minHourRate, maxHourRate, ...filters } = params;
+  const { page, limit, skip, sortBy, sortOrder } = pagination(options);
+
+  // Check if category exists
+  const category = await Category.findById(categoryId);
+  if (!category) throw new AppError(404, 'Category not found');
+
+  // Build match conditions
+  const match: any = {
+    'user.role': 'find job',
+    categoryId: new mongoose.Types.ObjectId(categoryId),
+  };
+
+  // Search on user fields
+  if (searchTerm) {
+    match.$or = [
+      { 'user.firstName': { $regex: searchTerm, $options: 'i' } },
+      { 'user.lastName': { $regex: searchTerm, $options: 'i' } },
+      { 'user.email': { $regex: searchTerm, $options: 'i' } },
+    ];
+  }
+
+  // Exact filters
+  for (const [key, value] of Object.entries(filters)) {
+    match[`user.${key}`] = value;
+  }
+
+  // Filter by hourRate range
+  if (minHourRate !== undefined || maxHourRate !== undefined) {
+    match.hourRate = {};
+    if (minHourRate !== undefined) match.hourRate.$gte = Number(minHourRate);
+    if (maxHourRate !== undefined) match.hourRate.$lte = Number(maxHourRate);
+  }
+
+  const pipeline: mongoose.PipelineStage[] = [
+    // Join with user collection
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'userId',
+        foreignField: '_id',
+        as: 'user',
+      },
+    },
+    { $unwind: '$user' },
+
+    // Apply match conditions
+    { $match: match },
+
+    // Sort
+    { $sort: { [sortBy || 'createdAt']: sortOrder === 'asc' ? 1 : -1 } },
+
+    // Pagination
+    { $skip: skip },
+    { $limit: limit },
+
+    // Select fields
+    {
+      $project: {
+        location: 1,
+        hourRate: 1,
+        gender: 1,
+        days: 1,
+        status: 1,
+        createdAt: 1,
+        user: {
+          firstName: 1,
+          lastName: 1,
+          email: 1,
+          role: 1,
+          profileImage: 1,
+        },
+      },
+    },
+  ];
+
+  const data = await Service.aggregate(pipeline);
+
+  // Get total count
+  const totalResult = await Service.aggregate([
+    ...pipeline.filter((stage) => !('$skip' in stage) && !('$limit' in stage)),
+    { $count: 'total' },
+  ]);
+  const total = totalResult[0]?.total || 0;
+
+  return {
+    data,
+    meta: { total, page, limit },
+  };
+};
 
 export const serviceService = {
   registerServiceAndSubscription,
+  serviceBaseUser,
 };
