@@ -20,7 +20,7 @@ router.put(
   fileUploader.upload.single('profileImage'),
   userController.updateMyProfile,
 );
-router.get('/all-user', userController.getAllUser);
+router.get('/all-user', auth(userRole.admin), userController.getAllUser);
 
 router.put(
   '/:id',

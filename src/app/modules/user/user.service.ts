@@ -21,7 +21,7 @@ const createUser = async (payload: IUser) => {
 
 const getAllUser = async (params: any, options: IOption) => {
   const { page, limit, skip, sortBy, sortOrder } = pagination(options);
-  const { searchTerm, ...filterData } = params;
+  const { searchTerm, minHourRate, maxHourRate, ...filterData } = params;
 
   const andCondition: any[] = [];
   const userSearchableFields = [
@@ -31,16 +31,8 @@ const getAllUser = async (params: any, options: IOption) => {
     'phone',
     'status',
     'gender',
-    'caregiverQualities',
-    'needToHelpWith',
-    'typeOfCare',
-    'kindOfCare',
-    'needCare',
     'email',
     'role',
-    'languages',
-    'experienceLevel',
-    'hourlyRate',
   ];
 
   if (searchTerm as any) {
@@ -59,12 +51,29 @@ const getAllUser = async (params: any, options: IOption) => {
     });
   }
 
+  if (minHourRate || maxHourRate) {
+    const hourRateCondition: any = {};
+
+    if (minHourRate) {
+      hourRateCondition.$gte = Number(minHourRate);
+    }
+
+    if (maxHourRate) {
+      hourRateCondition.$lte = Number(maxHourRate);
+    }
+
+    andCondition.push({
+      hourRate: hourRateCondition,
+    });
+  }
+
   const whereCondition = andCondition.length > 0 ? { $and: andCondition } : {};
 
   const result = await User.find(whereCondition)
     .skip(skip)
     .limit(limit)
-    .sort({ [sortBy]: sortOrder } as any);
+    .sort({ [sortBy]: sortOrder } as any)
+    .populate('service');
 
   if (!result) {
     throw new AppError(404, 'Users not found');
