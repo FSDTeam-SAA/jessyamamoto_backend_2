@@ -148,10 +148,18 @@ const changePassword = async (
   oldPassword: string,
   newPassword: string,
 ) => {
-  const user = await User.findById(userId);
+  const user = await User.findById(userId).select("+password");
   if (!user) throw new AppError(404, 'User not found');
-  const isPasswordMatched = await bcrypt.compare(oldPassword, user.password);
-  if (!isPasswordMatched) throw new AppError(400, 'Password not matched');
+
+  const isMatch = await bcrypt.compare(oldPassword, user.password);
+  if (!isMatch) {
+    throw new AppError(400, 'Old password is incorrect');
+  }
+
+  // prevent same password
+  if (oldPassword === newPassword) {
+    throw new AppError(400, 'New password must be different');
+  }
 
   user.password = newPassword;
   await user.save();
