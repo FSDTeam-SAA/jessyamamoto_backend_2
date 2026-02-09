@@ -48,7 +48,7 @@ const ServiceSchema = new Schema<IService>(
         required: true,
       },
       time: {
-        type: [Date],
+        type: [String],
         required: true,
       },
     },

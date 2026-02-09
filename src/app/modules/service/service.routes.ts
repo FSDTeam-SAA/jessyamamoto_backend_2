@@ -17,4 +17,16 @@ router.get(
   serviceController.serviceBaseUserController,
 );
 
+router.get(
+  '/:userId',
+  serviceAuth(userRole['find care'], userRole['find job']),
+  serviceController.singleUserService,
+);
+
+router.delete(
+  '/:userId',
+  serviceAuth(userRole.admin),
+  serviceController.deleteService,
+);
+
 export const serviceRouter = router;

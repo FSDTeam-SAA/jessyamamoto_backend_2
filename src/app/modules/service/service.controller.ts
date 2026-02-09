@@ -36,6 +36,27 @@ const serviceBaseUserController = async (req: Request, res: Response) => {
   res.status(200).json({
     success: true,
     message: 'Service base user fetched successfully',
+    meta: result.meta,
+    data: result.data,
+  });
+};
+
+const singleUserService = async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  const result = await serviceService.singleUserService(userId!);
+  res.status(200).json({
+    success: true,
+    message: 'Service fetched successfully',
+    data: result,
+  });
+};
+
+const deleteService = async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  const result = await serviceService.deleteService(userId!);
+  res.status(200).json({
+    success: true,
+    message: 'Service deleted successfully',
     data: result,
   });
 };
@@ -43,4 +64,6 @@ const serviceBaseUserController = async (req: Request, res: Response) => {
 export const serviceController = {
   registerServiceController,
   serviceBaseUserController,
+  singleUserService,
+  deleteService,
 };

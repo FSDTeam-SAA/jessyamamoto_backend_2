@@ -13,7 +13,7 @@ export interface IService {
   hourRate?: number;
   days?: {
     day: string[];
-    time: Date[];
+    time: string[];
   };
   status: 'pending' | 'accepted' | 'completed' | 'cancelled';
 }
