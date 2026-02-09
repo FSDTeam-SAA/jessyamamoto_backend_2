@@ -439,6 +439,7 @@ const serviceBaseUser = async (
         location: 1,
         hourRate: 1,
         gender: 1,
+
         days: 1,
         status: 1,
         createdAt: 1,
@@ -448,6 +449,7 @@ const serviceBaseUser = async (
           email: 1,
           role: 1,
           profileImage: 1,
+          _id: 1,
         },
       },
     },
@@ -463,12 +465,28 @@ const serviceBaseUser = async (
   const total = totalResult[0]?.total || 0;
 
   return {
-    data,
     meta: { total, page, limit },
+    data,
   };
+};
+
+const singleUserService = async (userId: string) => {
+  const result = await Service.findById(userId)
+    .populate('userId')
+    .populate('categoryId');
+  if (!result) throw new AppError(404, 'Service not found');
+  return result;
+};
+
+const deleteService = async (userId: string) => {
+  const result = await Service.findByIdAndDelete(userId);
+  if (!result) throw new AppError(404, 'Service not found');
+  return result;
 };
 
 export const serviceService = {
   registerServiceAndSubscription,
   serviceBaseUser,
+  singleUserService,
+  deleteService,
 };

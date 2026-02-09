@@ -1,8 +1,6 @@
 import AppError from '../../error/appError';
 import { fileUploader } from '../../helper/fileUploder';
-
 import pagination, { IOption } from '../../helper/pagenation';
-
 import { IUser } from './user.interface';
 import User from './user.model';
 
@@ -85,7 +83,9 @@ const getAllUser = async (params: any, options: IOption) => {
 };
 
 const getUserById = async (id: string) => {
-  const result = await User.findById(id);
+  const result = await User.findById(id)
+    .populate('category')
+    .populate('service');
   if (!result) {
     throw new AppError(404, 'User not found');
   }
