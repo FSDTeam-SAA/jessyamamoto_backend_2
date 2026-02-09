@@ -9,6 +9,7 @@ import { jwtHelpers } from '../../helper/jwtHelpers';
 import sendMailer from '../../helper/sendMailer';
 import bcrypt from 'bcryptjs';
 import createOtpTemplate from '../../utils/createOtpTemplate';
+import { userRole } from '../user/user.constant';
 
 const registerUser = async (payload: Partial<IUser>) => {
   const exist = await User.findOne({ email: payload.email });
@@ -26,6 +27,15 @@ const loginUser = async (payload: Partial<IUser>) => {
   const user = await User.findOne({ email: payload.email }).select('+password');
   if (!user) throw new AppError(401, 'User not found');
   if (!payload.password) throw new AppError(400, 'Password is required');
+
+  if (user.role !== userRole.admin) {
+    if (user.status !== 'active') {
+      throw new AppError(
+        403,
+        'Your account is not active. Please contact admin.',
+      );
+    }
+  }
 
   const isPasswordMatched = await bcrypt.compare(
     payload.password,
@@ -80,11 +90,12 @@ const forgotPassword = async (email: string) => {
 
   await sendMailer(
     user.email,
-    user.firstName + ' ' + user.lastName,
+    user.firstName,
     createOtpTemplate(otp, user.email, 'Your Company'),
   );
 
   return { message: 'OTP sent to your email' };
+  // return user;
 };
 
 const verifyEmail = async (email: string, otp: string) => {

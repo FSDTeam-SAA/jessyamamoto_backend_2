@@ -22,16 +22,10 @@ const getAllUser = catchAsync(async (req, res) => {
     'phone',
     'status',
     'gender',
-    'caregiverQualities',
-    'needToHelpWith',
-    'typeOfCare',
-    'kindOfCare',
-    'needCare',
     'email',
     'role',
-    'languages',
-    'experienceLevel',
-    'hourlyRate',
+    'minHourRate',
+    'maxHourRate',
   ]);
   const options = pick(req.query, ['page', 'limit', 'sortBy', 'sortOrder']);
   const result = await userService.getAllUser(filters, options);
