@@ -130,11 +130,7 @@ const updateBooking = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const userId = req.user?.id;
 
-  const result = await bookingService.updateBooking(
-    id!,
-    req.body,
-    userId,
-  );
+  const result = await bookingService.updateBooking(id!, req.body, userId);
 
   sendResponse(res, {
     statusCode: 200,
@@ -148,7 +144,6 @@ const updateBooking = catchAsync(async (req: Request, res: Response) => {
 const cancelBooking = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const userId = req.user!.id;
-
 
   const result = await bookingService.cancelBooking(id!, userId);
 
@@ -189,6 +184,22 @@ const getBookingStats = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getUserBookingManagement = catchAsync(
+  async (req: Request, res: Response) => {
+    const options = pick(req.query, ['page', 'limit']);
+
+    const result = await bookingService.getUserBookingManagement(options);
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: 'User booking management data fetched',
+      data: result.data,
+      meta: result.meta,
+    });
+  },
+);
+
 export const bookingController = {
   createBookingController,
   getAllbooking,
@@ -199,4 +210,5 @@ export const bookingController = {
   updateBooking,
   cancelBooking,
   getBookingStats,
+  getUserBookingManagement,
 };
