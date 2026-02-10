@@ -4,7 +4,9 @@ import sendResponse from '../../utils/sendResponse';
 import { CategoryService } from './category.service';
 
 const createCategory = catchAsync(async (req, res) => {
-  const result = await CategoryService.createCategory(req.body);
+  const file = req.file;
+  const fromData = req.body.data ? JSON.parse(req.body.data) : req.body;
+  const result = await CategoryService.createCategory(fromData, file);
   sendResponse(res, {
     statusCode: 200,
     success: true,
@@ -39,7 +41,9 @@ const getSingleCategory = catchAsync(async (req, res) => {
 
 const updateCategory = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const result = await CategoryService.updateCategory(id!, req.body);
+  const file = req.file;
+  const fromData = req.body.data ? JSON.parse(req.body.data) : req.body;
+  const result = await CategoryService.updateCategory(id!, fromData, file);
   sendResponse(res, {
     statusCode: 200,
     success: true,

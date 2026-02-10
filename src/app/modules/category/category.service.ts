@@ -1,10 +1,18 @@
 import AppError from '../../error/appError';
+import { fileUploader } from '../../helper/fileUploder';
 import pagination, { IOption } from '../../helper/pagenation';
 import Service from '../service/service.model';
 import { ICategory } from './category.interface';
 import Category from './category.model';
 
-const createCategory = async (payload: ICategory) => {
+const createCategory = async (
+  payload: ICategory,
+  file?: Express.Multer.File,
+) => {
+  if (file) {
+    const fileImage = await fileUploader.uploadToCloudinary(file);
+    payload.image = fileImage.url;
+  }
   const result = await Category.create(payload);
   if (!result) {
     throw new AppError(400, 'Category creation failed');
@@ -66,18 +74,27 @@ const getSingleCategory = async (id: string) => {
   }
 
   // Find services that include this category
-  const service = await Service.find({
-    categoryIds: { $in: [result._id] },
-  }).populate('categoryIds');
-  if (!service.length) {
-    throw new AppError(404, 'No services found for this category');
-  }
+  // const service = await Service.find({
+  //   categoryIds: { $in: [result._id] },
+  // }).populate('categoryIds');
+  // if (!service.length) {
+  //   throw new AppError(404, 'No services found for this category');
+  // }
 
-  return { result, service };
+  // return { result, service };
+  return result;
 };
 
-const updateCategory = async (id: string, data: any) => {
-  const result = await Category.findByIdAndUpdate(id, data, {
+const updateCategory = async (
+  id: string,
+  payload: Partial<ICategory>,
+  file?: Express.Multer.File,
+) => {
+  if (file) {
+    const fileImage = await fileUploader.uploadToCloudinary(file);
+    payload.image = fileImage.url;
+  }
+  const result = await Category.findByIdAndUpdate(id, payload, {
     new: true,
     runValidators: true,
   });
