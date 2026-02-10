@@ -18,7 +18,7 @@ const paymentSchema = new mongoose.Schema<IPayment>(
     paymentType: {
       type: String,
       required: true,
-      enum: ['subscription', 'shop'],
+      enum: ['subscription', 'booking'],
     },
     userType: {
       type: String,
@@ -27,6 +27,12 @@ const paymentSchema = new mongoose.Schema<IPayment>(
     },
     stripePaymentIntentId: { type: String },
     booking: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking' },
+    adminFree: {
+      type: Number,
+    },
+    serviceProviderFree:{
+      type:Number
+    }
   },
   { timestamps: true },
 );
