@@ -95,8 +95,14 @@ const createBooking = async (payload: {
     throw new AppError(400, 'Invalid service ID');
   }
 
-  if (!mongoose.Types.ObjectId.isValid(payload.userId)) {
+  const userId = await User.findById(payload.userId);
+
+  if (!userId) {
     throw new AppError(400, 'Invalid user ID');
+  }
+
+  if (userId.isSubscription === false) {
+    throw new AppError(403, 'You need to subscribe to find care');
   }
 
   // Get service details
