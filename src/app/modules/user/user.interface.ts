@@ -31,4 +31,7 @@ export interface IUser {
   experienceLevel?: 'beginner' | 'intermediate' | 'expert';
   category?: Types.ObjectId[];
   service?: Types.ObjectId[];
+  totalBooking?: Types.ObjectId[];
+  completeBooking?: Types.ObjectId[];
+  cencleBooking?: Types.ObjectId[];
 }
