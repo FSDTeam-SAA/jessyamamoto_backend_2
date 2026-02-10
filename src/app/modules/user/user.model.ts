@@ -80,6 +80,7 @@ const userSchema = new mongoose.Schema<IUser>(
     totalBooking: [{ type: mongoose.Schema.ObjectId, ref: 'Booking' }],
     completeBooking: [{ type: mongoose.Schema.ObjectId, ref: 'Booking' }],
     cencleBooking: [{ type: mongoose.Schema.ObjectId, ref: 'Booking' }],
+    stripeAccountId: { type: String },
   },
   {
     timestamps: true,

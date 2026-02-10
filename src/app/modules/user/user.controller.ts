@@ -109,6 +109,27 @@ const updateMyProfile = catchAsync(async (req, res) => {
   });
 });
 
+const createStripeAccount = catchAsync(async (req, res) => {
+  console.log(req.user?.id);
+  const result = await userService.createStripeAccount(req.user?.id);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'User updated successfully',
+    data: result,
+  });
+});
+
+const getStripeAccount = catchAsync(async (req, res) => {
+  const result = await userService.getStripeAccount(req.user?.id);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'User updated successfully',
+    data: result,
+  });
+});
+
 export const userController = {
   createUser,
   getAllUser,
@@ -117,4 +138,6 @@ export const userController = {
   deleteUserById,
   profile,
   updateMyProfile,
+  createStripeAccount,
+  getStripeAccount,
 };

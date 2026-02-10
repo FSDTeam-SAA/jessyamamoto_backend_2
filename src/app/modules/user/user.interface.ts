@@ -34,4 +34,5 @@ export interface IUser {
   totalBooking?: Types.ObjectId[];
   completeBooking?: Types.ObjectId[];
   cencleBooking?: Types.ObjectId[];
+  stripeAccountId?:string;
 }

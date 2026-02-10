@@ -45,13 +45,29 @@ const loginUser = async (payload: Partial<IUser>) => {
   // if (!user.verified) throw new AppError(403, 'Please verify your email first');
 
   const accessToken = jwtHelpers.genaretToken(
-    { id: user._id, role: user.role, email: user.email },
+    {
+      id: user._id,
+      role: user.role,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName || '',
+      gender: user.gender,
+      subscription: user.isSubscription,
+    },
     config.jwt.accessTokenSecret as Secret,
     config.jwt.accessTokenExpires,
   );
 
   const refreshToken = jwtHelpers.genaretToken(
-    { id: user._id, role: user.role, email: user.email },
+    {
+      id: user._id,
+      role: user.role,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName || '',
+      gender: user.gender,
+      subscription: user.isSubscription,
+    },
     config.jwt.refreshTokenSecret as Secret,
     config.jwt.refreshTokenExpires,
   );
@@ -70,7 +86,15 @@ const refreshToken = async (token: string) => {
   if (!user) throw new AppError(401, 'User not found');
 
   const accessToken = jwtHelpers.genaretToken(
-    { id: user._id, role: user.role, email: user.email },
+    {
+      id: user._id,
+      role: user.role,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName || '',
+      gender: user.gender,
+      subscription: user.isSubscription,
+    },
     config.jwt.accessTokenSecret as Secret,
     config.jwt.accessTokenExpires,
   );
@@ -125,12 +149,28 @@ const resetPassword = async (email: string, newPassword: string) => {
 
   // Auto-login after reset
   const accessToken = jwtHelpers.genaretToken(
-    { id: user._id, role: user.role, email: user.email },
+    {
+      id: user._id,
+      role: user.role,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName || '',
+      gender: user.gender,
+      subscription: user.isSubscription,
+    },
     config.jwt.accessTokenSecret as Secret,
     config.jwt.accessTokenExpires,
   );
   const refreshToken = jwtHelpers.genaretToken(
-    { id: user._id, role: user.role, email: user.email },
+    {
+      id: user._id,
+      role: user.role,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName || '',
+      gender: user.gender,
+      subscription: user.isSubscription,
+    },
     config.jwt.refreshTokenSecret as Secret,
     config.jwt.refreshTokenExpires,
   );
@@ -148,7 +188,7 @@ const changePassword = async (
   oldPassword: string,
   newPassword: string,
 ) => {
-  const user = await User.findById(userId).select("+password");
+  const user = await User.findById(userId).select('+password');
   if (!user) throw new AppError(404, 'User not found');
 
   const isMatch = await bcrypt.compare(oldPassword, user.password);
