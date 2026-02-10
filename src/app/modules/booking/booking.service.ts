@@ -229,6 +229,9 @@ const createBooking = async (payload: {
       throw new AppError(500, 'Failed to create booking');
     }
 
+    user.totalBooking?.push(createdBooking._id);
+    await user.save();
+
     // await Payment.create(
     //   [
     //     {
@@ -565,26 +568,26 @@ const getSingleBooking = async (id: string, userId?: string, role?: string) => {
 
 // ===================== Update Booking =====================
 const updateBooking = async (id: string, payload: any, userId?: string) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError(400, 'Invalid booking ID');
+  }
+
   const user = await User.findById(userId);
   if (!user) {
     throw new AppError(404, 'User not found');
   }
-  const isExit = await Booking.findById(id);
-  console.log(isExit);
-  if (!isExit) {
-    throw new AppError(400, 'Invalid booking ID');
-  }
 
   const booking = await Booking.findById(id).populate({
     path: 'serviceId',
-    select: 'userId',
+    select: 'userId days',
   });
+
   if (!booking) {
     throw new AppError(404, 'Booking not found');
   }
 
   // Authorization check
-  if (user?.role !== 'admin') {
+  if (user.role !== 'admin') {
     const isBookingOwner = booking.userId.toString() === userId;
     const isServiceProvider =
       (booking.serviceId as any).userId?.toString() === userId;
@@ -636,17 +639,18 @@ const updateBooking = async (id: string, payload: any, userId?: string) => {
     validateDayAndDate(day, date);
 
     // Check service availability for new slot
-    const service = await Service.findById(booking.serviceId);
-    if (payload.day && !service?.days?.day.includes(payload.day)) {
+    const service = booking.serviceId as any;
+    if (payload.day && !service?.days?.day?.includes(payload.day)) {
       throw new AppError(400, 'Service is not available on this day');
     }
-    if (payload.time && !service?.days?.time.includes(payload.time)) {
+    if (payload.time && !service?.days?.time?.includes(payload.time)) {
       throw new AppError(400, 'Service is not available at this time');
     }
 
-    // Check slot availability
+    // Check slot availability - use _id from populated service
+    const serviceIdString = (booking.serviceId as any)._id.toString();
     const available = await isSlotAvailable(
-      booking.serviceId.toString(),
+      serviceIdString,
       day,
       date,
       time,
@@ -695,21 +699,26 @@ const updateBooking = async (id: string, payload: any, userId?: string) => {
 };
 
 // ===================== Cancel Booking =====================
-const cancelBooking = async (id: string, userId: string, role?: string) => {
+const cancelBooking = async (id: string, userId: string) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(400, 'Invalid booking ID');
   }
+
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(404, 'user is not found');
 
   const booking = await Booking.findById(id).populate({
     path: 'serviceId',
     select: 'userId',
   });
+
+  // console.log(booking);
   if (!booking) {
     throw new AppError(404, 'Booking not found');
   }
 
   // Authorization check
-  if (role !== 'admin') {
+  if (user.role !== 'admin') {
     const isBookingOwner = booking.userId.toString() === userId;
     if (!isBookingOwner) {
       throw new AppError(403, 'You can only cancel your own bookings');
