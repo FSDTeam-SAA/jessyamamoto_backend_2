@@ -695,21 +695,26 @@ const updateBooking = async (id: string, payload: any, userId?: string) => {
 };
 
 // ===================== Cancel Booking =====================
-const cancelBooking = async (id: string, userId: string, role?: string) => {
+const cancelBooking = async (id: string, userId: string) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(400, 'Invalid booking ID');
   }
+
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(404, 'user is not found');
 
   const booking = await Booking.findById(id).populate({
     path: 'serviceId',
     select: 'userId',
   });
+
+  // console.log(booking);
   if (!booking) {
     throw new AppError(404, 'Booking not found');
   }
 
   // Authorization check
-  if (role !== 'admin') {
+  if (user.role !== 'admin') {
     const isBookingOwner = booking.userId.toString() === userId;
     if (!isBookingOwner) {
       throw new AppError(403, 'You can only cancel your own bookings');

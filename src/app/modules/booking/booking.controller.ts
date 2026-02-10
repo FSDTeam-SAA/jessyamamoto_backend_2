@@ -148,9 +148,9 @@ const updateBooking = catchAsync(async (req: Request, res: Response) => {
 const cancelBooking = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const userId = req.user!.id;
-  const role = req.user?.role;
 
-  const result = await bookingService.cancelBooking(id!, userId, role);
+
+  const result = await bookingService.cancelBooking(id!, userId);
 
   sendResponse(res, {
     statusCode: 200,
