@@ -14,11 +14,7 @@ router.post(
 );
 
 // ===================== Get All Bookings (Admin Only) =====================
-router.get(
-  '/',
-  auth(userRole.admin),
-  bookingController.getAllbooking,
-);
+router.get('/', auth(userRole.admin), bookingController.getAllbooking);
 
 // ===================== Get Booking Statistics =====================
 router.get(
@@ -33,6 +29,12 @@ router.get(
   '/my-bookings',
   auth(userRole['find care']),
   bookingController.getAllMyBooking,
+);
+
+router.get(
+  '/user-management',
+  auth(userRole.admin),
+  bookingController.getUserBookingManagement,
 );
 
 // ===================== Get Service Provider Bookings =====================
@@ -65,10 +67,6 @@ router.patch(
 );
 
 // ===================== Delete Booking (Admin Only) =====================
-router.delete(
-  '/:id',
-  auth(userRole.admin),
-  bookingController.deleteBooking,
-);
+router.delete('/:id', auth(userRole.admin), bookingController.deleteBooking);
 
 export const bookingRouter = router;

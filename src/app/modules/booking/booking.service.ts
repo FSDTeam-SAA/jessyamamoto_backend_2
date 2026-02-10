@@ -737,6 +737,9 @@ const cancelBooking = async (id: string, userId: string) => {
   booking.status = 'cancelled';
   await booking.save();
 
+  // user.cencleBooking?.push(booking._id);
+  // await user.save();
+
   // TODO: Process refund if payment was made
   // Find payment and initiate refund through Stripe
 
@@ -795,6 +798,70 @@ const getBookingStats = async (userId?: string) => {
   return formattedStats;
 };
 
+//========================================getUserBookingManagement=========================
+
+const getUserBookingManagement = async (options: IOption) => {
+  const { page, limit, skip } = pagination(options);
+
+  const pipeline: mongoose.PipelineStage[] = [
+    {
+      $lookup: {
+        from: 'bookings',
+        localField: '_id',
+        foreignField: 'userId',
+        as: 'bookings',
+      },
+    },
+    {
+      $addFields: {
+        totalBooking: { $size: '$bookings' },
+        completedBooking: {
+          $size: {
+            $filter: {
+              input: '$bookings',
+              as: 'b',
+              cond: { $eq: ['$$b.status', 'completed'] },
+            },
+          },
+        },
+        cancelledBooking: {
+          $size: {
+            $filter: {
+              input: '$bookings',
+              as: 'b',
+              cond: { $eq: ['$$b.status', 'cancelled'] },
+            },
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        firstName: 1,
+        lastName: 1,
+        email: 1,
+        profileImage: 1,
+        totalBooking: 1,
+        completedBooking: 1,
+        cancelledBooking: 1,
+      },
+    },
+    { $skip: skip },
+    { $limit: limit },
+  ];
+
+  const data = await User.aggregate(pipeline);
+
+  const total = await User.countDocuments();
+
+  return {
+    data,
+    meta: { total, page, limit },
+  };
+};
+
+
+
 export const bookingService = {
   createBooking,
   getAllBooking,
@@ -805,4 +872,5 @@ export const bookingService = {
   getMyServiceBookings,
   cancelBooking,
   getBookingStats,
+  getUserBookingManagement,
 };
