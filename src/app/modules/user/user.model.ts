@@ -61,8 +61,8 @@ const userSchema = new mongoose.Schema<IUser>(
         ref: 'Service',
       },
     ],
-    zip: {
-      type: Number,
+    location: {
+      type: String,
     },
     status: {
       type: String,
@@ -81,6 +81,7 @@ const userSchema = new mongoose.Schema<IUser>(
     completeBooking: [{ type: mongoose.Schema.ObjectId, ref: 'Booking' }],
     cencleBooking: [{ type: mongoose.Schema.ObjectId, ref: 'Booking' }],
     stripeAccountId: { type: String },
+    reviewRatting: [{ type: mongoose.Schema.ObjectId, ref: 'Review' }],
   },
   {
     timestamps: true,

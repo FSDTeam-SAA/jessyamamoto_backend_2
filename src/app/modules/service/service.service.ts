@@ -234,7 +234,7 @@ const registerServiceAndSubscription = async (
         firstName: payload.firstName,
         lastName: payload.lastName || '',
         role: payload.role,
-        zip: payload.zip || 1234,
+        location: payload.location || 1234,
       });
     }
   }
