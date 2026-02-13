@@ -75,7 +75,8 @@ const getAllUser = async (params: any, options: IOption) => {
     .skip(skip)
     .limit(limit)
     .sort({ [sortBy]: sortOrder } as any)
-    .populate('service');
+    .populate('service')
+    .populate('category');
 
   if (!result) {
     throw new AppError(404, 'Users not found');
