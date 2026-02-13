@@ -9,6 +9,7 @@ import { messageRoutes } from '../modules/message/message.routes';
 import { conversationRoutes } from '../modules/conversation/conversation.routes';
 import { bookingRouter } from '../modules/booking/booking.routes';
 import { bookmarkRoutes } from '../modules/bookmark/bookmark.routes';
+import { paymentRouter } from '../modules/payment/payment.routes';
 
 const router = Router();
 
@@ -52,6 +53,10 @@ const moduleRoutes = [
   {
     path: '/bookmark',
     route: bookmarkRoutes,
+  },
+  {
+    path: '/payment',
+    route: paymentRouter,
   },
 ];
 
