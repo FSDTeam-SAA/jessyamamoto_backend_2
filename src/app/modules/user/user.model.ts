@@ -82,6 +82,7 @@ const userSchema = new mongoose.Schema<IUser>(
     cencleBooking: [{ type: mongoose.Schema.ObjectId, ref: 'Booking' }],
     stripeAccountId: { type: String },
     reviewRatting: [{ type: mongoose.Schema.ObjectId, ref: 'Review' }],
+    givenReviewRatting: [{ type: mongoose.Schema.ObjectId, ref: 'Review' }],
   },
   {
     timestamps: true,
