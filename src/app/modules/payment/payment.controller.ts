@@ -9,6 +9,10 @@ const allPayment = catchAsync(async (req, res) => {
     'status',
     'paymentType',
     'userType',
+    'user.email',
+    'user.firstName',
+    'user.lastName',
+    'user.role',
   ]);
   const options = pick(req.query, ['limit', 'page', 'sortBy', 'sortOrder']);
   const result = await paymentService.allPayment(filters, options);
