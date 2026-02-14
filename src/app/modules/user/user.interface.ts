@@ -36,4 +36,5 @@ export interface IUser {
   cencleBooking?: Types.ObjectId[];
   stripeAccountId?: string;
   reviewRatting?: Types.ObjectId[];
+  givenReviewRatting?: Types.ObjectId[];
 }

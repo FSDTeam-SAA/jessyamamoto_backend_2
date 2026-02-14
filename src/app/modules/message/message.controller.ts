@@ -1,10 +1,17 @@
 // CREATE - Send message
+import { getIO } from '../../../server';
 import catchAsync from '../../utils/catchAsycn';
 import { messageService } from './message.service';
 
 // message.controller.ts - FIXED VERSION
 const sendMessage = catchAsync(async (req, res) => {
-  const { conversationId, receiverId, message, messageType = 'text', attachments } = req.body;
+  const {
+    conversationId,
+    receiverId,
+    message,
+    messageType = 'text',
+    attachments,
+  } = req.body;
   const senderId = req.user?.id;
 
   if (!senderId) {
@@ -30,6 +37,27 @@ const sendMessage = catchAsync(async (req, res) => {
     messageType,
     attachments,
   );
+
+  // After successfully saving to database, emit via socket
+  const io = getIO();
+
+  // Emit to conversation room
+  io.to(conversationId).emit('newMessage', {
+    ...newMessage?.toObject(),
+    timestamp: new Date(),
+  });
+
+  // Emit to receiver's personal room
+  io.to(receiverId).emit('messageReceived', {
+    _id: newMessage?._id,
+    conversationId,
+    senderId,
+    message,
+    messageType,
+    read: false,
+    createdAt: newMessage?.createdAt,
+    timestamp: new Date(),
+  });
 
   res.status(201).json({
     success: true,

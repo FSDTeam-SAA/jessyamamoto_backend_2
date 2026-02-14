@@ -13,6 +13,12 @@ const createReview = async (userId: string, payload: IReview) => {
 
   const review = await Review.create({ ...payload, userId: user._id });
   if (!review) throw new AppError(400, 'Review is not created');
+  await User.findByIdAndUpdate(payload.jobUserId, {
+    $push: { reviewRatting: review._id },
+  });
+  await User.findByIdAndUpdate(userId, {
+    $push: { givenReviewRatting: review._id },
+  });
   return review;
 };
 
@@ -77,6 +83,13 @@ const updateReview = async (id: string, payload: Partial<IReview>) => {
 const deleteReview = async (id: string) => {
   const review = await Review.findByIdAndDelete(id);
   if (!review) throw new AppError(404, 'Review is not found');
+  await User.findByIdAndUpdate(review.userId, {
+    $pull: { givenReviewRatting: review._id },
+  });
+
+  await User.findByIdAndUpdate(review.jobUserId, {
+    $pull: { reviewRatting: review._id },
+  });
   return review;
 };
 

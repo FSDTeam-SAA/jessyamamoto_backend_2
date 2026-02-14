@@ -15,7 +15,8 @@ const reviewSchema = new mongoose.Schema<IReview>(
     },
     ratting: {
       type: Number,
-      required: true,
+      min: 1,
+      max: 5,
     },
     safetyConcern: {
       type: Boolean,
@@ -29,7 +30,6 @@ const reviewSchema = new mongoose.Schema<IReview>(
   },
   { timestamps: true },
 );
-
 
 const Review = mongoose.model<IReview>('Review', reviewSchema);
 export default Review;
