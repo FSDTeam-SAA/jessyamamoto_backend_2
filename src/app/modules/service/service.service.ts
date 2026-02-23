@@ -472,7 +472,17 @@ const serviceBaseUser = async (
 
 const singleUserService = async (userId: string) => {
   const result = await Service.findById(userId)
-    .populate('userId')
+    .populate({
+      path: 'userId',
+      select: '-password -otp -otpExpiry',
+      populate: {
+        path: 'reviewRatting',
+        populate: {
+          path: 'userId',
+          select: 'firstName lastName profileImage',
+        },
+      },
+    })
     .populate('categoryId');
   if (!result) throw new AppError(404, 'Service not found');
   return result;
