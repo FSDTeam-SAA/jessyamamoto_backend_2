@@ -951,6 +951,227 @@ const validateBookingDate = (date: string): void => {
 };
 
 // ===================== Create Booking with Payment =====================
+// const createBooking = async (payload: {
+//   serviceId: string;
+//   day: string;
+//   date: string;
+//   time: string;
+//   userId: string;
+// }) => {
+//   // Validate date format
+//   if (!isValidDate(payload.date)) {
+//     throw new AppError(400, 'Invalid date format. Use YYYY-MM-DD');
+//   }
+
+//   // Validate booking date
+//   validateBookingDate(payload.date);
+
+//   // Validate ObjectId
+//   if (!mongoose.Types.ObjectId.isValid(payload.serviceId)) {
+//     throw new AppError(400, 'Invalid service ID');
+//   }
+
+//   const user = await User.findById(payload.userId);
+
+//   if (!user) {
+//     throw new AppError(400, 'Invalid user ID');
+//   }
+
+//   if (user.isSubscription === false) {
+//     throw new AppError(403, 'You need to subscribe to find care');
+//   }
+
+//   // Get service details
+//   const service = await Service.findById(payload.serviceId)
+//     .populate('userId')
+//     .populate('categoryId');
+
+//   if (!service) {
+//     throw new AppError(404, 'Service not found');
+//   }
+
+//   // Check if service is active
+//   if (service.status !== 'pending') {
+//     throw new AppError(400, 'This service is not available for booking');
+//   }
+
+//   // Check user role (only 'find care' can book)
+//   if (user.role !== 'find care') {
+//     throw new AppError(403, 'Only users looking for care can create bookings');
+//   }
+
+//   // Prevent self-booking
+//   if (service.userId._id.toString() === payload.userId) {
+//     throw new AppError(400, 'You cannot book your own service');
+//   }
+
+//   // Day validation
+//   if (!service.days?.day || !service.days.day.includes(payload.day)) {
+//     throw new AppError(
+//       400,
+//       `Service is not available on ${payload.day}. Available days: ${service.days?.day?.join(', ') || 'None'}`,
+//     );
+//   }
+
+//   // Time validation
+//   if (!service.days?.time || !service.days.time.includes(payload.time)) {
+//     throw new AppError(
+//       400,
+//       `Service is not available at ${payload.time}. Available times: ${service.days?.time?.join(', ') || 'None'}`,
+//     );
+//   }
+
+//   // Date + day match validation
+//   validateDayAndDate(payload.day, payload.date);
+
+//   // Slot conflict check
+//   const available = await isSlotAvailable(
+//     payload.serviceId,
+//     payload.day,
+//     payload.date,
+//     payload.time,
+//   );
+
+//   if (!available) {
+//     throw new AppError(
+//       409,
+//       'This time slot is already booked for the selected date',
+//     );
+//   }
+
+//   // Get service provider (find job user)
+//   const serviceProvider = service.userId as any;
+
+//   // Check if service provider has stripe account
+//   if (!serviceProvider.stripeAccountId) {
+//     throw new AppError(
+//       400,
+//       'Service provider has not completed Stripe account setup',
+//     );
+//   }
+
+//   // Calculate amount
+//   const hourRate = service.hourRate || 0;
+//   const totalAmount = hourRate * 100; // Convert to cents
+//   const adminFee = Math.round(totalAmount * 0.1); // 10% admin commission
+//   const providerAmount = totalAmount - adminFee; // 90% to service provider
+
+//   // Start transaction
+//   const session = await mongoose.startSession();
+//   session.startTransaction();
+
+//   try {
+//     // Create Stripe Checkout Session with payment to connected account
+//     const checkoutSession = await stripe.checkout.sessions.create({
+//       mode: 'payment',
+//       payment_method_types: ['card'],
+//       customer_email: user.email,
+//       line_items: [
+//         {
+//           price_data: {
+//             currency: 'usd',
+//             unit_amount: totalAmount,
+//             product_data: {
+//               name: `Booking: ${service.firstName} ${service.lastName}`,
+//               description: `${payload.day}, ${payload.date} at ${payload.time}`,
+//             },
+//           },
+//           quantity: 1,
+//         },
+//       ],
+//       payment_intent_data: {
+//         application_fee_amount: adminFee, // Admin gets 10%
+//         transfer_data: {
+//           destination: serviceProvider.stripeAccountId, // Service provider gets 90%
+//         },
+//       },
+//       success_url: `${config.frontendUrl}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
+//       cancel_url: `${config.frontendUrl}/booking-cancel`,
+//       metadata: {
+//         userId: payload.userId,
+//         serviceId: payload.serviceId,
+//         serviceProviderId: serviceProvider._id.toString(),
+//         day: payload.day,
+//         date: payload.date,
+//         time: payload.time,
+//         paymentType: 'booking',
+//         totalAmount: (totalAmount / 100).toString(),
+//         adminFee: (adminFee / 100).toString(),
+//         providerAmount: (providerAmount / 100).toString(),
+//       },
+//     });
+
+//     // Create booking
+//     const [createdBooking] = await Booking.create(
+//       [
+//         {
+//           serviceId: service._id,
+//           categoryId: service.categoryId._id,
+//           userId: payload.userId,
+//           day: payload.day,
+//           date: payload.date,
+//           time: payload.time,
+//           location: service.location,
+//           status: 'pending', // Will be updated after payment
+//         },
+//       ],
+//       { session },
+//     );
+
+//     if (!createdBooking) {
+//       throw new AppError(500, 'Failed to create booking');
+//     }
+
+//     // Create payment record
+//     await Payment.create(
+//       [
+//         {
+//           user: payload.userId,
+//           service: service._id,
+//           booking: createdBooking._id,
+//           category: service.categoryId,
+//           stripeSessionId: checkoutSession.id,
+//           amount: hourRate,
+//           currency: 'usd',
+//           status: 'pending',
+//           paymentType: 'booking',
+//           userType: 'findCare',
+//           adminFree: adminFee / 100,
+//           serviceProviderFree: providerAmount / 100,
+//         },
+//       ],
+//       { session },
+//     );
+
+//     // Update user's booking array
+//     user.totalBooking = user.totalBooking || [];
+//     user.totalBooking.push(createdBooking._id);
+//     await user.save({ session });
+
+//     await session.commitTransaction();
+//     session.endSession();
+
+//     return {
+//       booking: createdBooking,
+//       checkoutUrl: checkoutSession.url,
+//       sessionId: checkoutSession.id,
+//       paymentDetails: {
+//         totalAmount: hourRate,
+//         adminCommission: adminFee / 100,
+//         providerAmount: providerAmount / 100,
+//       },
+//     };
+//   } catch (error) {
+//     await session.abortTransaction();
+//     session.endSession();
+//     throw error;
+//   }
+// };
+
+
+
+
+//=====================================update code====================================
 const createBooking = async (payload: {
   serviceId: string;
   day: string;
@@ -958,73 +1179,68 @@ const createBooking = async (payload: {
   time: string;
   userId: string;
 }) => {
-  // Validate date format
+  // ================= DATE VALIDATION =================
   if (!isValidDate(payload.date)) {
     throw new AppError(400, 'Invalid date format. Use YYYY-MM-DD');
   }
 
-  // Validate booking date
   validateBookingDate(payload.date);
+  validateDayAndDate(payload.day, payload.date);
 
-  // Validate ObjectId
+  // ================= OBJECT ID VALIDATION =================
   if (!mongoose.Types.ObjectId.isValid(payload.serviceId)) {
     throw new AppError(400, 'Invalid service ID');
   }
 
+  // ================= USER CHECK =================
   const user = await User.findById(payload.userId);
+  if (!user) throw new AppError(404, 'User not found');
 
-  if (!user) {
-    throw new AppError(400, 'Invalid user ID');
-  }
-
-  if (user.isSubscription === false) {
+  if (!user.isSubscription) {
     throw new AppError(403, 'You need to subscribe to find care');
   }
 
-  // Get service details
-  const service = await Service.findById(payload.serviceId)
-    .populate('userId')
-    .populate('categoryId');
-
-  if (!service) {
-    throw new AppError(404, 'Service not found');
-  }
-
-  // Check if service is active
-  if (service.status !== 'pending') {
-    throw new AppError(400, 'This service is not available for booking');
-  }
-
-  // Check user role (only 'find care' can book)
   if (user.role !== 'find care') {
     throw new AppError(403, 'Only users looking for care can create bookings');
   }
 
-  // Prevent self-booking
+  // ================= SERVICE CHECK =================
+  const service = await Service.findById(payload.serviceId)
+    .populate('userId')
+    .lean(); // 👈 IMPORTANT
+
+  if (!service) throw new AppError(404, 'Service not found');
+
+  if (!service.categoryId) {
+    throw new AppError(400, 'Service category not found');
+  }
+
+  if (service.status !== 'pending') {
+    throw new AppError(400, 'This service is not available for booking');
+  }
+
+  // Prevent self booking
   if (service.userId._id.toString() === payload.userId) {
     throw new AppError(400, 'You cannot book your own service');
   }
 
-  // Day validation
-  if (!service.days?.day || !service.days.day.includes(payload.day)) {
+  // ================= DAY VALIDATION =================
+  if (!service.days?.day?.includes(payload.day)) {
     throw new AppError(
       400,
-      `Service is not available on ${payload.day}. Available days: ${service.days?.day?.join(', ') || 'None'}`,
+      `Service is not available on ${payload.day}`
     );
   }
 
-  // Time validation
-  if (!service.days?.time || !service.days.time.includes(payload.time)) {
+  // ================= TIME VALIDATION =================
+  if (!service.days?.time?.includes(payload.time)) {
     throw new AppError(
       400,
-      `Service is not available at ${payload.time}. Available times: ${service.days?.time?.join(', ') || 'None'}`,
+      `Service is not available at ${payload.time}`
     );
   }
 
-  // Date + day match validation
-  validateDayAndDate(payload.day, payload.date);
-
-  // Slot conflict check
+  // ================= SLOT CHECK =================
   const available = await isSlotAvailable(
     payload.serviceId,
     payload.day,
@@ -1039,29 +1255,28 @@ const createBooking = async (payload: {
     );
   }
 
-  // Get service provider (find job user)
-  const serviceProvider = service.userId as any;
+  // ================= PROVIDER CHECK =================
+  const serviceProvider: any = service.userId;
 
-  // Check if service provider has stripe account
   if (!serviceProvider.stripeAccountId) {
     throw new AppError(
       400,
-      'Service provider has not completed Stripe account setup',
+      'Service provider has not completed Stripe setup',
     );
   }
 
-  // Calculate amount
+  // ================= PAYMENT CALCULATION =================
   const hourRate = service.hourRate || 0;
-  const totalAmount = hourRate * 100; // Convert to cents
-  const adminFee = Math.round(totalAmount * 0.1); // 10% admin commission
-  const providerAmount = totalAmount - adminFee; // 90% to service provider
+  const totalAmount = hourRate * 100;
+  const adminFee = Math.round(totalAmount * 0.1);
+  const providerAmount = totalAmount - adminFee;
 
-  // Start transaction
+  // ================= TRANSACTION START =================
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    // Create Stripe Checkout Session with payment to connected account
+    // ================= STRIPE SESSION =================
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
@@ -1080,9 +1295,9 @@ const createBooking = async (payload: {
         },
       ],
       payment_intent_data: {
-        application_fee_amount: adminFee, // Admin gets 10%
+        application_fee_amount: adminFee,
         transfer_data: {
-          destination: serviceProvider.stripeAccountId, // Service provider gets 90%
+          destination: serviceProvider.stripeAccountId,
         },
       },
       success_url: `${config.frontendUrl}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
@@ -1095,40 +1310,33 @@ const createBooking = async (payload: {
         date: payload.date,
         time: payload.time,
         paymentType: 'booking',
-        totalAmount: (totalAmount / 100).toString(),
-        adminFee: (adminFee / 100).toString(),
-        providerAmount: (providerAmount / 100).toString(),
       },
     });
 
-    // Create booking
+    // ================= CREATE BOOKING =================
     const [createdBooking] = await Booking.create(
       [
         {
           serviceId: service._id,
-          categoryId: service.categoryId,
+          categoryId: service.categoryId, // ✅ FIXED (no ._id crash)
           userId: payload.userId,
           day: payload.day,
           date: payload.date,
           time: payload.time,
           location: service.location,
-          status: 'pending', // Will be updated after payment
+          status: 'pending',
         },
       ],
       { session },
     );
 
-    if (!createdBooking) {
-      throw new AppError(500, 'Failed to create booking');
-    }
-
-    // Create payment record
+    // ================= CREATE PAYMENT =================
     await Payment.create(
       [
         {
           user: payload.userId,
           service: service._id,
-          booking: createdBooking._id,
+          booking: createdBooking!._id,
           category: service.categoryId,
           stripeSessionId: checkoutSession.id,
           amount: hourRate,
@@ -1143,9 +1351,9 @@ const createBooking = async (payload: {
       { session },
     );
 
-    // Update user's booking array
+    // ================= UPDATE USER =================
     user.totalBooking = user.totalBooking || [];
-    user.totalBooking.push(createdBooking._id);
+    user.totalBooking.push(createdBooking!._id);
     await user.save({ session });
 
     await session.commitTransaction();
@@ -1155,11 +1363,6 @@ const createBooking = async (payload: {
       booking: createdBooking,
       checkoutUrl: checkoutSession.url,
       sessionId: checkoutSession.id,
-      paymentDetails: {
-        totalAmount: hourRate,
-        adminCommission: adminFee / 100,
-        providerAmount: providerAmount / 100,
-      },
     };
   } catch (error) {
     await session.abortTransaction();
