@@ -483,7 +483,8 @@ const singleUserService = async (userId: string) => {
         },
       },
     })
-    .populate('categoryId');
+    .populate('categoryId')
+    .lean();
   if (!result) throw new AppError(404, 'Service not found');
   return result;
 };
