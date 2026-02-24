@@ -20,6 +20,7 @@
   "type": "commonjs",
   "dependencies": {
     "@types/streamifier": "^0.1.2",
+    "axios": "^1.13.5",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.7.0",
     "cookie-parser": "^1.4.7",

@@ -204,6 +204,7 @@ import Stripe from 'stripe';
 import config from '../../config';
 import mongoose from 'mongoose';
 import pagination, { IOption } from '../../helper/pagenation';
+import { getLocationFromZip } from '../../helper/geocode';
 
 const stripe = new Stripe(config.stripe.secretKey!);
 
@@ -213,6 +214,7 @@ const registerServiceAndSubscription = async (
 ) => {
   /* ================= GET OR CREATE USER ================= */
   let user = null;
+  let geoData = null;
 
   if (userId) {
     user = await User.findById(userId);
@@ -226,6 +228,15 @@ const registerServiceAndSubscription = async (
       );
     }
 
+    /* ================= GEO FROM ZIP ================= */
+    if (payload.zip) {
+      geoData = await getLocationFromZip(payload.zip.toString());
+
+      if (!geoData) {
+        throw new AppError(400, 'Invalid zip code');
+      }
+    }
+
     user = await User.findOne({ email: payload.email });
     if (!user) {
       user = await User.create({
@@ -234,7 +245,7 @@ const registerServiceAndSubscription = async (
         firstName: payload.firstName,
         lastName: payload.lastName || '',
         role: payload.role,
-        location: payload.location || 1234,
+        // location: payload.location || 1234,
       });
     }
   }
@@ -325,7 +336,13 @@ const registerServiceAndSubscription = async (
         {
           userId: user._id,
           categoryId: payload.categoryId,
-          location: payload.location,
+
+          // ✅ auto from zip
+          zip: payload.zip,
+          location: geoData?.location,
+          lat: geoData?.lat,
+          lng: geoData?.lng,
+
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
@@ -340,11 +357,23 @@ const registerServiceAndSubscription = async (
     /* ---------- UPDATE USER ---------- */
     await User.findByIdAndUpdate(
       user._id,
+
       {
         $addToSet: {
           category: payload.categoryId,
           service: service[0]?._id,
         },
+      },
+      { session },
+    );
+
+    await User.findByIdAndUpdate(
+      user._id,
+      {
+        location: geoData?.location,
+        lat: geoData?.lat,
+        lng: geoData?.lng,
+        zip: payload.zip,
       },
       { session },
     );
@@ -436,6 +465,7 @@ const serviceBaseUser = async (
     // Select fields
     {
       $project: {
+        zip: 1,
         location: 1,
         hourRate: 1,
         gender: 1,
@@ -470,15 +500,13 @@ const serviceBaseUser = async (
   };
 };
 
-
-
 /* ------------------- SINGLE USER SERVICE ------------------- */
 
 const serviceUserBaseUser = async (
   userId: string,
   categoryId: string,
   params: any,
-  options: IOption
+  options: IOption,
 ) => {
   const { searchTerm, minHourRate, maxHourRate, ...filters } = params;
   const { page, limit, skip, sortBy, sortOrder } = pagination(options);

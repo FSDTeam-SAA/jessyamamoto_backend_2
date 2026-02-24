@@ -10,13 +10,15 @@ export interface IUser {
   bio?: string;
   phone?: string;
   location?: string;
+  lng?: number;
+  lat?: number;
   otp?: string;
   otpExpiry?: Date;
   verified?: boolean;
   isSubscription?: boolean;
   subscription?: Types.ObjectId;
   subscriptionExpiry?: Date;
-  zip: number;
+  zip: string;
   hourRate?: number;
   days?: string[];
   needCare?: string;
@@ -37,4 +39,5 @@ export interface IUser {
   stripeAccountId?: string;
   reviewRatting?: Types.ObjectId[];
   givenReviewRatting?: Types.ObjectId[];
+  exprience?: number;
 }

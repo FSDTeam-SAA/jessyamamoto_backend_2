@@ -7,13 +7,17 @@ export interface IService {
   firstName?: string;
   lastName?: string;
   gender?: string;
-  location: string;
+  zip?: string;
+  location?: string;
+  lat?: number;
+  lng?: number;
   typeOfInterest?: string;
   helpOfInterest?: string;
   hourRate?: number;
   days?: {
-    day: string[];
-    time: string[];
-  };
+    day: string;
+    startTime: string;
+    endTime: string;
+  }[];
   status: 'pending' | 'accepted' | 'completed' | 'cancelled';
 }

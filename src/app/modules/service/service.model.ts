@@ -13,9 +13,17 @@ const ServiceSchema = new Schema<IService>(
       ref: 'Category',
       required: true,
     },
+    zip: {
+      type: String,
+    },
     location: {
       type: String,
-      required: true,
+    },
+    lat: {
+      type: Number,
+    },
+    lng: {
+      type: Number,
     },
     email: {
       type: String,
@@ -42,16 +50,13 @@ const ServiceSchema = new Schema<IService>(
     helpOfInterest: {
       type: String,
     },
-    days: {
-      day: {
-        type: [String],
-        required: true,
+    days: [
+      {
+        day: { type: String, required: true },
+        startTime: { type: String, required: true },
+        endTime: { type: String, required: true },
       },
-      time: {
-        type: [String],
-        required: true,
-      },
-    },
+    ],
     status: {
       type: String,
       enum: ['pending', 'accepted', 'completed', 'cancelled'],
