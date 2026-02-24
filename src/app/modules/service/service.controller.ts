@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { serviceService } from './service.service';
 import pick from '../../helper/pick';
+import catchAsync from '../../utils/catchAsycn';
+import AppError from '../../error/appError';
 
 const registerServiceController = async (req: Request, res: Response) => {
   const userId = req.user?.id || null;
@@ -41,20 +43,29 @@ const serviceBaseUserController = async (req: Request, res: Response) => {
   });
 };
 
-const serviceUserBaseUserController = async (req: Request, res: Response) => {
+const serviceUserBaseUserController = catchAsync(async (req, res) => {
   const { categoryId } = req.params;
+
+  if (!req.user?.id) {
+    throw new AppError(401, 'Unauthorized');
+  }
+
+  // ✅ filters
   const filters = pick(req.query, [
     'searchTerm',
     'firstName',
     'lastName',
     'email',
-    'role',
+    'minHourRate',
+    'maxHourRate',
   ]);
-  const userId = req.user?.id;
-  console.log(userId);
+
+  const userId = req.user.id;
+
   const options = pick(req.query, ['limit', 'page', 'sortBy', 'sortOrder']);
+
   const result = await serviceService.serviceUserBaseUser(
-    userId!,
+    userId,
     categoryId!,
     filters,
     options,
@@ -66,7 +77,7 @@ const serviceUserBaseUserController = async (req: Request, res: Response) => {
     meta: result.meta,
     data: result.data,
   });
-};
+});
 
 const singleUserService = async (req: Request, res: Response) => {
   const { userId } = req.params;
