@@ -41,6 +41,33 @@ const serviceBaseUserController = async (req: Request, res: Response) => {
   });
 };
 
+const serviceUserBaseUserController = async (req: Request, res: Response) => {
+  const { categoryId } = req.params;
+  const filters = pick(req.query, [
+    'searchTerm',
+    'firstName',
+    'lastName',
+    'email',
+    'role',
+  ]);
+  const userId = req.user?.id;
+  console.log(userId);
+  const options = pick(req.query, ['limit', 'page', 'sortBy', 'sortOrder']);
+  const result = await serviceService.serviceUserBaseUser(
+    userId!,
+    categoryId!,
+    filters,
+    options,
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Service base user fetched successfully',
+    meta: result.meta,
+    data: result.data,
+  });
+};
+
 const singleUserService = async (req: Request, res: Response) => {
   const { userId } = req.params;
   const result = await serviceService.singleUserService(userId!);
@@ -64,6 +91,7 @@ const deleteService = async (req: Request, res: Response) => {
 export const serviceController = {
   registerServiceController,
   serviceBaseUserController,
+  serviceUserBaseUserController,
   singleUserService,
   deleteService,
 };

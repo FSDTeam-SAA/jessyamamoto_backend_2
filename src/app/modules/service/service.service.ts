@@ -470,6 +470,137 @@ const serviceBaseUser = async (
   };
 };
 
+
+
+/* ------------------- SINGLE USER SERVICE ------------------- */
+
+const serviceUserBaseUser = async (
+  userId: string,
+  categoryId: string,
+  params: any,
+  options: IOption
+) => {
+  const { searchTerm, minHourRate, maxHourRate, ...filters } = params;
+  const { page, limit, skip, sortBy, sortOrder } = pagination(options);
+
+  // 1️⃣ Logged-in user
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(404, 'User is not found');
+
+  // 2️⃣ Category check
+  const category = await Category.findById(categoryId);
+  if (!category) throw new AppError(404, 'Category not found');
+
+  // 3️⃣ Opposite role logic
+  let targetRole: string;
+
+  if (user.role === 'find job') {
+    targetRole = 'find care';
+  } else if (user.role === 'find care') {
+    targetRole = 'find job';
+  } else {
+    throw new AppError(400, 'Invalid user role');
+  }
+
+  // 4️⃣ Build match condition
+  const match: any = {
+    categoryId: new mongoose.Types.ObjectId(categoryId),
+    'user.role': targetRole,
+  };
+
+  // 5️⃣ Search
+  if (searchTerm) {
+    match.$or = [
+      { 'user.firstName': { $regex: searchTerm, $options: 'i' } },
+      { 'user.lastName': { $regex: searchTerm, $options: 'i' } },
+      { 'user.email': { $regex: searchTerm, $options: 'i' } },
+    ];
+  }
+
+  // 6️⃣ Exact filters
+  for (const [key, value] of Object.entries(filters)) {
+    match[`user.${key}`] = value;
+  }
+
+  // 7️⃣ Hour rate filter
+  if (minHourRate !== undefined || maxHourRate !== undefined) {
+    match.hourRate = {};
+    if (minHourRate !== undefined)
+      match.hourRate.$gte = Number(minHourRate);
+    if (maxHourRate !== undefined)
+      match.hourRate.$lte = Number(maxHourRate);
+  }
+
+  // 8️⃣ Aggregation pipeline
+  const pipeline: mongoose.PipelineStage[] = [
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'userId',
+        foreignField: '_id',
+        as: 'user',
+      },
+    },
+    { $unwind: '$user' },
+    { $match: match },
+    {
+      $sort: {
+        [sortBy || 'createdAt']: sortOrder === 'asc' ? 1 : -1,
+      },
+    },
+    { $skip: skip },
+    { $limit: limit },
+    {
+      $project: {
+        location: 1,
+        hourRate: 1,
+        gender: 1,
+        days: 1,
+        status: 1,
+        createdAt: 1,
+        user: {
+          _id: 1,
+          firstName: 1,
+          lastName: 1,
+          email: 1,
+          role: 1,
+          profileImage: 1,
+        },
+      },
+    },
+  ];
+
+  // 9️⃣ Data fetch
+  const data = await Service.aggregate(pipeline);
+
+  // 🔟 Total count (without pagination)
+  const totalResult = await Service.aggregate([
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'userId',
+        foreignField: '_id',
+        as: 'user',
+      },
+    },
+    { $unwind: '$user' },
+    { $match: match },
+    { $count: 'total' },
+  ]);
+
+  const total = totalResult[0]?.total || 0;
+
+  // Response
+  return {
+    meta: {
+      total,
+      page,
+      limit,
+    },
+    data,
+  };
+};
+
 const singleUserService = async (userId: string) => {
   const result = await Service.findById(userId)
     .populate({
@@ -479,7 +610,7 @@ const singleUserService = async (userId: string) => {
         path: 'reviewRatting',
         populate: {
           path: 'userId',
-          select: 'firstName lastName profileImage',
+          select: 'firstName lastName profileImage service',
         },
       },
     })
@@ -498,6 +629,7 @@ const deleteService = async (userId: string) => {
 export const serviceService = {
   registerServiceAndSubscription,
   serviceBaseUser,
+  serviceUserBaseUser,
   singleUserService,
   deleteService,
 };
