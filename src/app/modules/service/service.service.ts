@@ -483,15 +483,15 @@ const serviceUserBaseUser = async (
   const { searchTerm, minHourRate, maxHourRate, ...filters } = params;
   const { page, limit, skip, sortBy, sortOrder } = pagination(options);
 
-  // 1️⃣ Logged-in user
+  // ✅ 1. Logged-in user
   const user = await User.findById(userId);
   if (!user) throw new AppError(404, 'User is not found');
 
-  // 2️⃣ Category check
+  // ✅ 2. Category check
   const category = await Category.findById(categoryId);
   if (!category) throw new AppError(404, 'Category not found');
 
-  // 3️⃣ Opposite role logic
+  // ✅ 3. Opposite role logic
   let targetRole: string;
 
   if (user.role === 'find job') {
@@ -502,13 +502,13 @@ const serviceUserBaseUser = async (
     throw new AppError(400, 'Invalid user role');
   }
 
-  // 4️⃣ Build match condition
+  // ✅ 4. Base match
   const match: any = {
     categoryId: new mongoose.Types.ObjectId(categoryId),
     'user.role': targetRole,
   };
 
-  // 5️⃣ Search
+  // ✅ 5. Search
   if (searchTerm) {
     match.$or = [
       { 'user.firstName': { $regex: searchTerm, $options: 'i' } },
@@ -517,21 +517,25 @@ const serviceUserBaseUser = async (
     ];
   }
 
-  // 6️⃣ Exact filters
-  for (const [key, value] of Object.entries(filters)) {
+  // ✅ 6. Exact filters
+  Object.entries(filters).forEach(([key, value]) => {
     match[`user.${key}`] = value;
-  }
+  });
 
-  // 7️⃣ Hour rate filter
+  // ✅ 7. Hour rate filter
   if (minHourRate !== undefined || maxHourRate !== undefined) {
     match.hourRate = {};
-    if (minHourRate !== undefined)
+
+    if (minHourRate !== undefined) {
       match.hourRate.$gte = Number(minHourRate);
-    if (maxHourRate !== undefined)
+    }
+
+    if (maxHourRate !== undefined) {
       match.hourRate.$lte = Number(maxHourRate);
+    }
   }
 
-  // 8️⃣ Aggregation pipeline
+  // ✅ 8. Aggregation pipeline
   const pipeline: mongoose.PipelineStage[] = [
     {
       $lookup: {
@@ -570,10 +574,9 @@ const serviceUserBaseUser = async (
     },
   ];
 
-  // 9️⃣ Data fetch
   const data = await Service.aggregate(pipeline);
 
-  // 🔟 Total count (without pagination)
+  // ✅ total count
   const totalResult = await Service.aggregate([
     {
       $lookup: {
@@ -590,13 +593,8 @@ const serviceUserBaseUser = async (
 
   const total = totalResult[0]?.total || 0;
 
-  // Response
   return {
-    meta: {
-      total,
-      page,
-      limit,
-    },
+    meta: { total, page, limit },
     data,
   };
 };
