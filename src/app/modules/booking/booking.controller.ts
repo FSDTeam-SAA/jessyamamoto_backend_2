@@ -9,11 +9,10 @@ const createBookingController = catchAsync(
   async (req: Request, res: Response) => {
     const { serviceId, day, date, time } = req.body;
 
-    // Validation
     if (!serviceId || !day || !date || !time) {
       return sendResponse(res, {
         statusCode: 400,
-        success: true,
+        success: false, 
         message: 'Missing required fields: serviceId, day, date, time',
         data: null,
       });

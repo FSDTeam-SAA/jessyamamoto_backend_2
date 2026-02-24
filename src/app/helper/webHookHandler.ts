@@ -100,7 +100,6 @@
 
 // export default webHookHandler;
 
-
 //============================== update code =========================================
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
@@ -181,7 +180,7 @@ const webHookHandler = async (req: Request, res: Response) => {
         /* --------- BOOKING PAYMENT --------- */
         if (paymentType === 'booking') {
           const booking = await Booking.findById(payment.booking);
-          
+
           if (!booking) {
             console.warn('⚠️ Booking not found for payment:', payment._id);
             return res.status(200).json({ received: true });
@@ -195,7 +194,10 @@ const webHookHandler = async (req: Request, res: Response) => {
           console.log('💰 Payment details:');
           console.log('   Total Amount:', session.metadata?.totalAmount);
           console.log('   Admin Fee (10%):', session.metadata?.adminFee);
-          console.log('   Provider Amount (90%):', session.metadata?.providerAmount);
+          console.log(
+            '   Provider Amount (90%):',
+            session.metadata?.providerAmount,
+          );
         }
 
         return res.status(200).json({ received: true });
@@ -208,7 +210,7 @@ const webHookHandler = async (req: Request, res: Response) => {
         const payment = await Payment.findOne({
           stripePaymentIntentId: intent.id,
         });
-        
+
         if (payment) {
           payment.status = 'failed';
           await payment.save();
@@ -219,7 +221,10 @@ const webHookHandler = async (req: Request, res: Response) => {
             if (booking && booking.status === 'pending') {
               booking.status = 'cancelled';
               await booking.save();
-              console.log('❌ Booking cancelled due to payment failure:', booking._id);
+              console.log(
+                '❌ Booking cancelled due to payment failure:',
+                booking._id,
+              );
             }
           }
         }
@@ -230,15 +235,26 @@ const webHookHandler = async (req: Request, res: Response) => {
       /* ================= TRANSFER CREATED (MONEY SENT TO SERVICE PROVIDER) ================= */
       case 'transfer.created': {
         const transfer = event.data.object as Stripe.Transfer;
-        console.log('💸 Transfer created to service provider:', transfer.destination);
-        console.log('   Amount:', transfer.amount / 100, transfer.currency.toUpperCase());
+        console.log(
+          '💸 Transfer created to service provider:',
+          transfer.destination,
+        );
+        console.log(
+          '   Amount:',
+          transfer.amount / 100,
+          transfer.currency.toUpperCase(),
+        );
         return res.status(200).json({ received: true });
       }
 
       /* ================= APPLICATION FEE CREATED (ADMIN COMMISSION) ================= */
       case 'application_fee.created': {
         const fee = event.data.object as Stripe.ApplicationFee;
-        console.log('💰 Admin commission received:', fee.amount / 100, fee.currency.toUpperCase());
+        console.log(
+          '💰 Admin commission received:',
+          fee.amount / 100,
+          fee.currency.toUpperCase(),
+        );
         return res.status(200).json({ received: true });
       }
 

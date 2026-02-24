@@ -407,41 +407,64 @@ const serviceBaseUser = async (
   options: IOption,
 ) => {
   const { searchTerm, minHourRate, maxHourRate, ...filters } = params;
+
   const { page, limit, skip, sortBy, sortOrder } = pagination(options);
 
-  // Check if category exists
+  // ✅ Check category
   const category = await Category.findById(categoryId);
   if (!category) throw new AppError(404, 'Category not found');
 
-  // Build match conditions
+  // ================= MATCH =================
   const match: any = {
-    'user.role': 'find job',
     categoryId: new mongoose.Types.ObjectId(categoryId),
+    'user.role': 'find job',
+    'user.status': 'active',
   };
 
-  // Search on user fields
+  // ================= SEARCH =================
   if (searchTerm) {
     match.$or = [
       { 'user.firstName': { $regex: searchTerm, $options: 'i' } },
       { 'user.lastName': { $regex: searchTerm, $options: 'i' } },
       { 'user.email': { $regex: searchTerm, $options: 'i' } },
+      { 'user.location': { $regex: searchTerm, $options: 'i' } },
+      { 'user.bio': { $regex: searchTerm, $options: 'i' } },
     ];
   }
 
-  // Exact filters
+  // ================= DYNAMIC FILTER =================
   for (const [key, value] of Object.entries(filters)) {
-    match[`user.${key}`] = value;
+    if (!value) continue;
+
+    // Hour rate handled separately
+    if (key === 'minHourRate' || key === 'maxHourRate') continue;
+
+    // Array fields (multi-select)
+    const arrayFields = [
+      'language',
+      'agegroup',
+      'education',
+      'canHelpWith',
+      'professionalSkill',
+      'perferences',
+    ];
+
+    if (arrayFields.includes(key)) {
+      match[`user.${key}`] = { $in: Array.isArray(value) ? value : [value] };
+    } else {
+      match[`user.${key}`] = value;
+    }
   }
 
-  // Filter by hourRate range
-  if (minHourRate !== undefined || maxHourRate !== undefined) {
+  // ================= HOUR RATE RANGE =================
+  if (minHourRate || maxHourRate) {
     match.hourRate = {};
-    if (minHourRate !== undefined) match.hourRate.$gte = Number(minHourRate);
-    if (maxHourRate !== undefined) match.hourRate.$lte = Number(maxHourRate);
+    if (minHourRate) match.hourRate.$gte = Number(minHourRate);
+    if (maxHourRate) match.hourRate.$lte = Number(maxHourRate);
   }
 
+  // ================= PIPELINE =================
   const pipeline: mongoose.PipelineStage[] = [
-    // Join with user collection
     {
       $lookup: {
         from: 'users',
@@ -452,34 +475,44 @@ const serviceBaseUser = async (
     },
     { $unwind: '$user' },
 
-    // Apply match conditions
     { $match: match },
 
-    // Sort
-    { $sort: { [sortBy || 'createdAt']: sortOrder === 'asc' ? 1 : -1 } },
+    {
+      $sort: {
+        [sortBy || 'createdAt']: sortOrder === 'asc' ? 1 : -1,
+      },
+    },
 
-    // Pagination
     { $skip: skip },
     { $limit: limit },
 
-    // Select fields
     {
       $project: {
         zip: 1,
         location: 1,
         hourRate: 1,
         gender: 1,
-
         days: 1,
         status: 1,
         createdAt: 1,
         user: {
+          _id: 1,
           firstName: 1,
           lastName: 1,
           email: 1,
           role: 1,
           profileImage: 1,
-          _id: 1,
+          bio: 1,
+          phone: 1,
+          gender: 1,
+          experienceLevel: 1,
+          location: 1,
+          language: 1,
+          agegroup: 1,
+          education: 1,
+          canHelpWith: 1,
+          professionalSkill: 1,
+          perferences: 1,
         },
       },
     },
@@ -487,11 +520,16 @@ const serviceBaseUser = async (
 
   const data = await Service.aggregate(pipeline);
 
-  // Get total count
-  const totalResult = await Service.aggregate([
-    ...pipeline.filter((stage) => !('$skip' in stage) && !('$limit' in stage)),
+  // ================= TOTAL COUNT =================
+  const countPipeline = [
+    ...pipeline.filter(
+      (stage) =>
+        !('$skip' in stage) && !('$limit' in stage) && !('$sort' in stage),
+    ),
     { $count: 'total' },
-  ]);
+  ];
+
+  const totalResult = await Service.aggregate(countPipeline);
   const total = totalResult[0]?.total || 0;
 
   return {
@@ -506,65 +544,80 @@ const serviceUserBaseUser = async (
   userId: string,
   categoryId: string,
   params: any,
-  options: IOption,
+  options: IOption
 ) => {
   const { searchTerm, minHourRate, maxHourRate, ...filters } = params;
   const { page, limit, skip, sortBy, sortOrder } = pagination(options);
 
-  // ✅ 1. Logged-in user
+  // Logged-in user
   const user = await User.findById(userId);
   if (!user) throw new AppError(404, 'User is not found');
 
-  // ✅ 2. Category check
+  // Category check
   const category = await Category.findById(categoryId);
   if (!category) throw new AppError(404, 'Category not found');
 
-  // ✅ 3. Opposite role logic
+  // Opposite role
   let targetRole: string;
+  if (user.role === 'find job') targetRole = 'find care';
+  else if (user.role === 'find care') targetRole = 'find job';
+  else throw new AppError(400, 'Invalid user role');
 
-  if (user.role === 'find job') {
-    targetRole = 'find care';
-  } else if (user.role === 'find care') {
-    targetRole = 'find job';
-  } else {
-    throw new AppError(400, 'Invalid user role');
-  }
-
-  // ✅ 4. Base match
+  // ================= MATCH =================
   const match: any = {
     categoryId: new mongoose.Types.ObjectId(categoryId),
     'user.role': targetRole,
+    'user.status': 'active',
+    status: 'pending', // only available services
   };
 
-  // ✅ 5. Search
+  // ================= SEARCH =================
   if (searchTerm) {
     match.$or = [
       { 'user.firstName': { $regex: searchTerm, $options: 'i' } },
       { 'user.lastName': { $regex: searchTerm, $options: 'i' } },
       { 'user.email': { $regex: searchTerm, $options: 'i' } },
+      { 'user.location': { $regex: searchTerm, $options: 'i' } },
+      { 'user.bio': { $regex: searchTerm, $options: 'i' } },
     ];
   }
 
-  // ✅ 6. Exact filters
+  // ================= DYNAMIC FILTER =================
+  const arrayFields = [
+    'language',
+    'agegroup',
+    'education',
+    'canHelpWith',
+    'professionalSkill',
+    'perferences',
+  ];
+
   Object.entries(filters).forEach(([key, value]) => {
-    match[`user.${key}`] = value;
+    if (!value) return;
+
+    // skip hourRate (handled later)
+    if (key === 'minHourRate' || key === 'maxHourRate') return;
+
+    // array filter
+    if (arrayFields.includes(key)) {
+      match[`user.${key}`] = {
+        $in: Array.isArray(value) ? value : [value],
+      };
+    } else {
+      match[`user.${key}`] = value;
+    }
   });
 
-  // ✅ 7. Hour rate filter
-  if (minHourRate !== undefined || maxHourRate !== undefined) {
+  // ================= HOUR RATE =================
+  if (minHourRate || maxHourRate) {
     match.hourRate = {};
-
-    if (minHourRate !== undefined) {
-      match.hourRate.$gte = Number(minHourRate);
-    }
-
-    if (maxHourRate !== undefined) {
-      match.hourRate.$lte = Number(maxHourRate);
-    }
+    if (minHourRate) match.hourRate.$gte = Number(minHourRate);
+    if (maxHourRate) match.hourRate.$lte = Number(maxHourRate);
   }
 
-  // ✅ 8. Aggregation pipeline
-  const pipeline: mongoose.PipelineStage[] = [
+  // ================= PIPELINE =================
+  const basePipeline: mongoose.PipelineStage[] = [
+    // join user
     {
       $lookup: {
         from: 'users',
@@ -575,6 +628,36 @@ const serviceUserBaseUser = async (
     },
     { $unwind: '$user' },
     { $match: match },
+  ];
+
+  const dataPipeline: mongoose.PipelineStage[] = [
+    ...basePipeline,
+
+    // join reviews
+    {
+      $lookup: {
+        from: 'reviews',
+        localField: 'user._id',
+        foreignField: 'jobUserId',
+        as: 'reviews',
+      },
+    },
+
+    // calculate avg + total rating
+    {
+      $addFields: {
+        averageRating: {
+          $cond: [
+            { $gt: [{ $size: '$reviews' }, 0] },
+            { $avg: '$reviews.ratting' },
+            0,
+          ],
+        },
+        totalRatings: { $size: '$reviews' },
+      },
+    },
+
+    // sorting
     {
       $sort: {
         [sortBy || 'createdAt']: sortOrder === 'asc' ? 1 : -1,
@@ -582,6 +665,8 @@ const serviceUserBaseUser = async (
     },
     { $skip: skip },
     { $limit: limit },
+
+    // final projection
     {
       $project: {
         location: 1,
@@ -590,6 +675,8 @@ const serviceUserBaseUser = async (
         days: 1,
         status: 1,
         createdAt: 1,
+        averageRating: { $round: ['$averageRating', 1] },
+        totalRatings: 1,
         user: {
           _id: 1,
           firstName: 1,
@@ -597,28 +684,29 @@ const serviceUserBaseUser = async (
           email: 1,
           role: 1,
           profileImage: 1,
+          bio: 1,
+          phone: 1,
+          gender: 1,
+          experienceLevel: 1,
+          location: 1,
+          language: 1,
+          agegroup: 1,
+          education: 1,
+          canHelpWith: 1,
+          professionalSkill: 1,
+          perferences: 1,
         },
       },
     },
   ];
 
-  const data = await Service.aggregate(pipeline);
+  const data = await Service.aggregate(dataPipeline);
 
-  // ✅ total count
+  // ================= COUNT =================
   const totalResult = await Service.aggregate([
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'userId',
-        foreignField: '_id',
-        as: 'user',
-      },
-    },
-    { $unwind: '$user' },
-    { $match: match },
+    ...basePipeline,
     { $count: 'total' },
   ]);
-
   const total = totalResult[0]?.total || 0;
 
   return {

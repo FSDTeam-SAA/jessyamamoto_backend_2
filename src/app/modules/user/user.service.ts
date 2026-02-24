@@ -5,6 +5,7 @@ import pagination, { IOption } from '../../helper/pagenation';
 import { IUser } from './user.interface';
 import User from './user.model';
 import config from '../../config';
+import { getLocationFromZip } from '../../helper/geocode';
 
 const createUser = async (payload: IUser) => {
   const user = await User.findOne({ email: payload.email });
@@ -147,37 +148,68 @@ const profile = async (id: string) => {
 
 const updateMyProfile = async (
   id: string,
-  payload: IUser,
+  payload: Partial<IUser>,
   file?: Express.Multer.File,
 ) => {
   const user = await User.findById(id);
   if (!user) {
     throw new AppError(404, 'User not found');
   }
+
+  // profile image upload
   if (file) {
     const uploadProfile = await fileUploader.uploadToCloudinary(file);
+
     if (!(uploadProfile as any)?.secure_url) {
       throw new AppError(400, 'Failed to upload profile image');
     }
 
-    // console.log(uploadProfile)
     payload.profileImage = (uploadProfile as any).secure_url;
   }
-  const result = await User.findByIdAndUpdate(id, payload, { new: true });
+
+  // ZIP changed → update location
+  if (payload.zip && payload.zip !== user.zip) {
+    const locationData = await getLocationFromZip(payload.zip);
+
+    if (locationData) {
+      payload.location = locationData.location;
+      payload.lat = locationData.lat;
+      payload.lng = locationData.lng;
+    }
+  }
+
+  // update user
+  const result = await User.findByIdAndUpdate(id, payload, {
+    new: true,
+    runValidators: true,
+  });
+
   if (!result) {
     throw new AppError(404, 'User not found');
   }
+
   return result;
 };
 
 const stripe = new Stripe(config.stripe.secretKey!);
 
 // stripe account create
+const formatStatementDescriptor = (text: string) => {
+  if (!text) return 'USER SERVICE';
+
+  return (
+    text
+      .toUpperCase()
+      .replace(/[^A-Z0-9 ]/g, '')
+      .substring(0, 22)
+      .trim() || 'USER SERVICE'
+  );
+};
+
 const createStripeAccount = async (userId: string) => {
   const user = await User.findById(userId);
-  if (!user) {
-    throw new AppError(404, 'User not found');
-  }
+  if (!user) throw new AppError(404, 'User not found');
+
   if (user.stripeAccountId) {
     throw new AppError(400, 'User already has a stripe account');
   }
@@ -190,19 +222,19 @@ const createStripeAccount = async (userId: string) => {
       first_name: user.firstName,
       last_name: user.lastName,
       email: user.email,
-      // phone: user.phone,
     },
     business_profile: {
       name: user.firstName,
-      product_description: user.bio || 'user descripetion',
+      product_description: user.bio || 'User service',
       url: 'https://your-default-website.com',
     },
     settings: {
       payments: {
-        statement_descriptor: user.bio || 'user descripetion',
+        statement_descriptor: formatStatementDescriptor(user.firstName),
       },
     },
   } as any);
+
   if (!account) {
     throw new AppError(400, 'Failed to create stripe account');
   }

@@ -27,6 +27,7 @@ export const getLocationFromZip = async (zip: string) => {
       location: result.display_name,
     };
   } catch (error) {
+    console.log(error);
     return null;
   }
 };

@@ -1,4 +1,4 @@
-import mongoose, { Types } from 'mongoose';
+import { Types } from 'mongoose';
 
 export interface IUser {
   firstName: string;
@@ -29,7 +29,6 @@ export interface IUser {
   // job
   status?: 'active' | 'inactive';
   gender?: 'male' | 'female' | 'other';
-  languages?: string[];
   experienceLevel?: 'beginner' | 'intermediate' | 'expert';
   category?: Types.ObjectId[];
   service?: Types.ObjectId[];
@@ -40,4 +39,10 @@ export interface IUser {
   reviewRatting?: Types.ObjectId[];
   givenReviewRatting?: Types.ObjectId[];
   exprience?: number;
+  language?: string[];
+  agegroup?: string[];
+  education?: string[];
+  canHelpWith?: string[];
+  professionalSkill?: string[];
+  perferences?: string[];
 }
