@@ -61,9 +61,14 @@ const userSchema = new mongoose.Schema<IUser>(
         ref: 'Service',
       },
     ],
+    zip:{
+      type: String,
+    },
     location: {
       type: String,
     },
+    lat: Number,
+    lng: Number,
     status: {
       type: String,
       enum: ['active', 'inactive'],
@@ -83,6 +88,8 @@ const userSchema = new mongoose.Schema<IUser>(
     stripeAccountId: { type: String },
     reviewRatting: [{ type: mongoose.Schema.ObjectId, ref: 'Review' }],
     givenReviewRatting: [{ type: mongoose.Schema.ObjectId, ref: 'Review' }],
+    exprience: Number,
+    
   },
   {
     timestamps: true,
