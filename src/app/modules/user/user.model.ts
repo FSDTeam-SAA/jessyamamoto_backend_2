@@ -61,7 +61,7 @@ const userSchema = new mongoose.Schema<IUser>(
         ref: 'Service',
       },
     ],
-    zip:{
+    zip: {
       type: String,
     },
     location: {
@@ -89,7 +89,12 @@ const userSchema = new mongoose.Schema<IUser>(
     reviewRatting: [{ type: mongoose.Schema.ObjectId, ref: 'Review' }],
     givenReviewRatting: [{ type: mongoose.Schema.ObjectId, ref: 'Review' }],
     exprience: Number,
-    
+    language: [{ type: String }],
+    agegroup: [{ type: String }],
+    education: [{ type: String }],
+    canHelpWith: [{ type: String }],
+    professionalSkill: [{ type: String }],
+    perferences: [{ type: String }],
   },
   {
     timestamps: true,
