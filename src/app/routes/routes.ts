@@ -10,6 +10,7 @@ import { conversationRoutes } from '../modules/conversation/conversation.routes'
 import { bookingRouter } from '../modules/booking/booking.routes';
 import { bookmarkRoutes } from '../modules/bookmark/bookmark.routes';
 import { paymentRouter } from '../modules/payment/payment.routes';
+import { helpRoutes } from '../modules/help/help.routes';
 
 const router = Router();
 
@@ -57,6 +58,10 @@ const moduleRoutes = [
   {
     path: '/payment',
     route: paymentRouter,
+  },
+  {
+    path: '/help',
+    route: helpRoutes,
   },
 ];
 
