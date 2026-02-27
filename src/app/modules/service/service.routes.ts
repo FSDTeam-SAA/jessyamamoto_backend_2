@@ -12,6 +12,11 @@ router.post(
 );
 
 router.get(
+  '/locations',
+  serviceController.getAllServiceLocations,
+);
+
+router.get(
   '/service-base-user/:categoryId',
   serviceAuth(userRole['find care'], userRole['find job']),
   serviceController.serviceBaseUserController,
