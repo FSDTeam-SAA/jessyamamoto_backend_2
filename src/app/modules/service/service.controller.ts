@@ -3,6 +3,7 @@ import { serviceService } from './service.service';
 import pick from '../../helper/pick';
 import catchAsync from '../../utils/catchAsycn';
 import AppError from '../../error/appError';
+import sendResponse from '../../utils/sendResponse';
 
 const registerServiceController = async (req: Request, res: Response) => {
   const userId = req.user?.id || null;
@@ -118,10 +119,25 @@ const deleteService = async (req: Request, res: Response) => {
   });
 };
 
+
+const getAllServiceLocations = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await serviceService.getAllServiceLocations(req.query);
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: 'Service locations fetched successfully',
+      data: result,
+    });
+  },
+);
+
 export const serviceController = {
   registerServiceController,
   serviceBaseUserController,
   serviceUserBaseUserController,
   singleUserService,
   deleteService,
+  getAllServiceLocations
 };

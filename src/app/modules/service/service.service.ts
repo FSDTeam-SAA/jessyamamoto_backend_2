@@ -544,7 +544,7 @@ const serviceUserBaseUser = async (
   userId: string,
   categoryId: string,
   params: any,
-  options: IOption
+  options: IOption,
 ) => {
   const { searchTerm, minHourRate, maxHourRate, ...filters } = params;
   const { page, limit, skip, sortBy, sortOrder } = pagination(options);
@@ -740,10 +740,54 @@ const deleteService = async (userId: string) => {
   return result;
 };
 
+const getAllServiceLocations = async (query: any) => {
+  const { searchTerm, limit } = query;
+
+  const match: any = {};
+
+  if (searchTerm) {
+    match.location = {
+      $exists: true,
+      $nin: [null, ''],
+      $regex: searchTerm,
+      $options: 'i',
+    };
+  } else {
+    match.location = {
+      $exists: true,
+      $nin: [null, ''],
+    };
+  }
+
+  const pipeline: any[] = [
+    { $match: match },
+    {
+      $group: {
+        _id: '$location',
+        location: { $first: '$location' },
+        zip: { $first: '$zip' },
+        lat: { $first: '$lat' },
+        lng: { $first: '$lng' },
+        totalServices: { $sum: 1 },
+      },
+    },
+    { $sort: { location: 1 } },
+  ];
+
+  if (limit) {
+    pipeline.push({ $limit: Number(limit) });
+  }
+
+  const data = await Service.aggregate(pipeline);
+
+  return data;
+};
+
 export const serviceService = {
   registerServiceAndSubscription,
   serviceBaseUser,
   serviceUserBaseUser,
   singleUserService,
   deleteService,
+  getAllServiceLocations,
 };
