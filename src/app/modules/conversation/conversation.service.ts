@@ -34,10 +34,18 @@ const getConversations = async (userId: string) => {
     deletedBy: { $ne: new Types.ObjectId(userId) },
   })
     .populate('participants', 'firstName lastName profileImage role')
+    .populate('lastMessageReceiverId', '_id')
     .sort({ lastMessageAt: -1 })
     .lean();
 
-  return conversations;
+  // Only show unreadCount for current user when they are the receiver of last message
+  const userObjId = userId.toString();
+  return conversations.map((c: any) => {
+    const receiverId = c.lastMessageReceiverId?._id?.toString();
+    const effectiveUnread = receiverId === userObjId ? (c.unreadCount || 0) : 0;
+    const { lastMessageReceiverId, ...rest } = c;
+    return { ...rest, unreadCount: effectiveUnread };
+  });
 };
 
 // DELETE - Delete conversation for a user

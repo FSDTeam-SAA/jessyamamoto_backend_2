@@ -18,6 +18,10 @@ const conversationSchema = new Schema<IConversation>(
       type: Date,
       default: Date.now,
     },
+    lastMessageReceiverId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
     unreadCount: {
       type: Number,
       default: 0,

@@ -86,6 +86,14 @@ const getConversationMessages = catchAsync(async (req, res) => {
 
   const messages = await messageService.getMessages(conversationId, userId);
 
+  // Emit to conversation room so inbox can refresh unread count
+  const io = getIO();
+  io.to(conversationId).emit('conversationRead', {
+    conversationId,
+    readBy: userId,
+    unreadCount: 0,
+  });
+
   res.status(200).json({
     success: true,
     message: 'Messages fetched successfully',
@@ -168,6 +176,22 @@ const markMessageAsRead = catchAsync(async (req, res) => {
     });
   }
 
+  const io = getIO();
+  const senderId = typeof message.senderId === 'object' && message.senderId?._id
+    ? message.senderId._id.toString()
+    : message.senderId?.toString();
+  if (senderId) {
+    io.to(senderId).emit('messageRead', {
+      messageId: message._id,
+      conversationId: message.conversationId,
+      readAt: new Date(),
+    });
+  }
+  io.to(message.conversationId.toString()).emit('conversationRead', {
+    conversationId: message.conversationId,
+    readBy: userId,
+  });
+
   res.status(200).json({
     success: true,
     message: 'Message marked as read',
@@ -196,6 +220,14 @@ const markMessagesAsRead = catchAsync(async (req, res) => {
 
   const objectIds = messageIds.map((id) => id);
   const result = await messageService.markMultipleAsRead(objectIds, userId);
+
+  if (result.modifiedCount > 0) {
+    const io = getIO();
+    const convIds = await messageService.getConversationIdsForMessages(objectIds);
+    for (const convId of convIds) {
+      if (convId) io.to(convId).emit('conversationRead', { conversationId: convId, readBy: userId });
+    }
+  }
 
   res.status(200).json({
     success: true,
