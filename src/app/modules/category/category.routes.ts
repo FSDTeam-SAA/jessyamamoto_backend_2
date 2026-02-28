@@ -8,7 +8,10 @@ const router = express.Router();
 router.post(
   '/',
   auth(userRole.admin),
-  fileUploader.upload.single('image'),
+  fileUploader.upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'banner', maxCount: 10 },
+  ]),
   CategoryController.createCategory,
 );
 router.get('/', CategoryController.getAllCategory);
@@ -16,7 +19,10 @@ router.get('/:id', CategoryController.getSingleCategory);
 router.put(
   '/:id',
   auth(userRole.admin),
-  fileUploader.upload.single('image'),
+  fileUploader.upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'banner', maxCount: 10 },
+  ]),
   CategoryController.updateCategory,
 );
 router.delete('/:id', auth(userRole.admin), CategoryController.deleteCategory);

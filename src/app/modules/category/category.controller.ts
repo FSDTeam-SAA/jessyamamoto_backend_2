@@ -1,12 +1,19 @@
+import AppError from '../../error/appError';
 import pick from '../../helper/pick';
 import catchAsync from '../../utils/catchAsycn';
 import sendResponse from '../../utils/sendResponse';
 import { CategoryService } from './category.service';
 
 const createCategory = catchAsync(async (req, res) => {
-  const file = req.file;
-  const fromData = req.body.data ? JSON.parse(req.body.data) : req.body;
-  const result = await CategoryService.createCategory(fromData, file);
+  const files = req.files as {
+    image?: Express.Multer.File[];
+    banner?: Express.Multer.File[];
+  };
+
+  const formData = req.body.data ? JSON.parse(req.body.data) : req.body;
+
+  const result = await CategoryService.createCategory(formData, files);
+
   sendResponse(res, {
     statusCode: 200,
     success: true,
@@ -41,9 +48,24 @@ const getSingleCategory = catchAsync(async (req, res) => {
 
 const updateCategory = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const file = req.file;
-  const fromData = req.body.data ? JSON.parse(req.body.data) : req.body;
-  const result = await CategoryService.updateCategory(id!, fromData, file);
+
+  // support multiple files: image + banner
+  const files = req.files as {
+    image?: Express.Multer.File[];
+    banner?: Express.Multer.File[];
+  };
+
+  // parse JSON safely
+  let formData;
+  try {
+    formData = req.body.data ? JSON.parse(req.body.data) : req.body;
+  } catch (error) {
+    console.log(error)
+    throw new AppError(400, 'Invalid JSON format in data field');
+  }
+
+  const result = await CategoryService.updateCategory(id!, formData, files);
+
   sendResponse(res, {
     statusCode: 200,
     success: true,
