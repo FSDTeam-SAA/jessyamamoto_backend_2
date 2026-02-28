@@ -567,7 +567,7 @@ const serviceBaseUser = async (
   const category = await Category.findById(categoryId);
   if (!category) throw new AppError(404, 'Category not found');
 
-  // ✅ Role validation (DIRECT match — no opposite logic)
+  // ✅ Role validation
   if (!role) {
     throw new AppError(400, 'Role is required (find job | find care)');
   }
@@ -603,10 +603,9 @@ const serviceBaseUser = async (
 
   Object.entries(filters).forEach(([key, value]) => {
     if (!value) return;
-
     if (key === 'minHourRate' || key === 'maxHourRate') return;
 
-    // location filter (service OR user)
+    // 🔹 location filter (service OR user)
     if (key === 'location') {
       const locStr = String(value).trim();
       if (locStr) {
@@ -621,7 +620,7 @@ const serviceBaseUser = async (
       return;
     }
 
-    // array filters
+    // 🔹 array filters
     if (arrayFields.includes(key)) {
       match[`user.${key}`] = {
         $in: Array.isArray(value) ? value : [value],
@@ -640,6 +639,7 @@ const serviceBaseUser = async (
 
   // ================= BASE PIPELINE =================
   const basePipeline: mongoose.PipelineStage[] = [
+    // 🔹 join user
     {
       $lookup: {
         from: 'users',
@@ -649,6 +649,19 @@ const serviceBaseUser = async (
       },
     },
     { $unwind: '$user' },
+
+    // 🔹 join category (✅ NEW)
+    {
+      $lookup: {
+        from: 'categories', // ⚠️ ensure your collection name
+        localField: 'categoryId',
+        foreignField: '_id',
+        as: 'category',
+      },
+    },
+    { $unwind: '$category' },
+
+    // 🔹 match
     { $match: match },
   ];
 
@@ -656,7 +669,7 @@ const serviceBaseUser = async (
   const dataPipeline: mongoose.PipelineStage[] = [
     ...basePipeline,
 
-    // join reviews
+    // 🔹 join reviews
     {
       $lookup: {
         from: 'reviews',
@@ -666,7 +679,7 @@ const serviceBaseUser = async (
       },
     },
 
-    // rating calculation
+    // 🔹 rating calculation
     {
       $addFields: {
         averageRating: {
@@ -680,7 +693,7 @@ const serviceBaseUser = async (
       },
     },
 
-    // sorting
+    // 🔹 sorting
     {
       $sort: {
         [sortBy || 'createdAt']: sortOrder === 'asc' ? 1 : -1,
@@ -690,7 +703,7 @@ const serviceBaseUser = async (
     { $skip: skip },
     { $limit: limit },
 
-    // projection
+    // 🔹 projection
     {
       $project: {
         location: 1,
@@ -701,6 +714,13 @@ const serviceBaseUser = async (
         createdAt: 1,
         averageRating: { $round: ['$averageRating', 1] },
         totalRatings: 1,
+
+        // ✅ category populated
+        category: {
+          _id: '$category._id',
+          name: '$category.name',
+        },
+
         user: {
           _id: 1,
           firstName: 1,
