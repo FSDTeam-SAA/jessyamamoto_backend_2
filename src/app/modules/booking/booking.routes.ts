@@ -53,9 +53,15 @@ router.get(
 );
 
 // ===================== Update Booking =====================
+// Only find care (booking owner) can update status. PUT {{base_url}}/booking/:id
+router.put(
+  '/:id',
+  auth(userRole.admin, userRole['find care']),
+  bookingController.updateBooking,
+);
 router.patch(
   '/:id',
-  auth(userRole.admin, userRole['find care'], userRole['find job']),
+  auth(userRole.admin, userRole['find care']),
   bookingController.updateBooking,
 );
 

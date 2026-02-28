@@ -439,6 +439,21 @@ const serviceBaseUser = async (
     // Hour rate handled separately
     if (key === 'minHourRate' || key === 'maxHourRate') continue;
 
+    // location: match Service.location OR user.location (partial match)
+    if (key === 'location') {
+      const locStr = String(value).trim();
+      if (locStr) {
+        match.$and = match.$and || [];
+        match.$and.push({
+          $or: [
+            { location: { $regex: locStr, $options: 'i' } },
+            { 'user.location': { $regex: locStr, $options: 'i' } },
+          ],
+        });
+      }
+      continue;
+    }
+
     // Array fields (multi-select)
     const arrayFields = [
       'language',
@@ -597,6 +612,21 @@ const serviceUserBaseUser = async (
 
     // skip hourRate (handled later)
     if (key === 'minHourRate' || key === 'maxHourRate') return;
+
+    // location: match Service.location OR user.location (partial match)
+    if (key === 'location') {
+      const locStr = String(value).trim();
+      if (locStr) {
+        match.$and = match.$and || [];
+        match.$and.push({
+          $or: [
+            { location: { $regex: locStr, $options: 'i' } },
+            { 'user.location': { $regex: locStr, $options: 'i' } },
+          ],
+        });
+      }
+      return;
+    }
 
     // array filter
     if (arrayFields.includes(key)) {
