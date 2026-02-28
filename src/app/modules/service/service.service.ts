@@ -719,6 +719,9 @@ const serviceBaseUser = async (
         category: {
           _id: '$category._id',
           name: '$category.name',
+          description: '$category.description',
+          banner: '$category.banner',
+          logo: '$category.image',
         },
 
         user: {

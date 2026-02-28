@@ -7,16 +7,37 @@ import Category from './category.model';
 
 const createCategory = async (
   payload: ICategory,
-  file?: Express.Multer.File,
+  files?: {
+    image?: Express.Multer.File[];
+    banner?: Express.Multer.File[];
+  },
 ) => {
-  if (file) {
-    const fileImage = await fileUploader.uploadToCloudinary(file);
-    payload.image = fileImage.url;
+  //upload single image
+  if (files?.image?.length) {
+    const uploadedImage = await fileUploader.uploadToCloudinary(
+      files.image[0]!,
+    );
+    payload.image = uploadedImage.url;
   }
+
+  // upload multiple banners
+  if (files?.banner?.length) {
+    const bannerUrls: string[] = [];
+
+    for (const file of files.banner) {
+      const uploadedBanner = await fileUploader.uploadToCloudinary(file);
+      bannerUrls.push(uploadedBanner.url);
+    }
+
+    payload.banner = bannerUrls;
+  }
+
   const result = await Category.create(payload);
+
   if (!result) {
     throw new AppError(400, 'Category creation failed');
   }
+
   return result;
 };
 
@@ -88,19 +109,41 @@ const getSingleCategory = async (id: string) => {
 const updateCategory = async (
   id: string,
   payload: Partial<ICategory>,
-  file?: Express.Multer.File,
+  files?: {
+    image?: Express.Multer.File[];
+    banner?: Express.Multer.File[];
+  },
 ) => {
-  if (file) {
-    const fileImage = await fileUploader.uploadToCloudinary(file);
-    payload.image = fileImage.url;
+  // upload new main image if provided
+  const imageFile = files?.image?.[0];
+  if (imageFile) {
+    const uploadedImage = await fileUploader.uploadToCloudinary(imageFile);
+    payload.image = uploadedImage.url;
   }
+
+  // upload new banners if provided
+  if (files?.banner && files.banner.length > 0) {
+    const bannerUrls: string[] = [];
+
+    for (const file of files.banner) {
+      const uploadedBanner = await fileUploader.uploadToCloudinary(file);
+      bannerUrls.push(uploadedBanner.url);
+    }
+
+    // replace the existing banner array
+    payload.banner = bannerUrls;
+  }
+
+  // update the category
   const result = await Category.findByIdAndUpdate(id, payload, {
     new: true,
     runValidators: true,
   });
+
   if (!result) {
-    throw new AppError(404, 'User not found');
+    throw new AppError(404, 'Category not found');
   }
+
   return result;
 };
 
