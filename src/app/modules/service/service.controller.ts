@@ -23,22 +23,23 @@ const registerServiceController = async (req: Request, res: Response) => {
 const serviceBaseUserController = async (req: Request, res: Response) => {
   const { categoryId } = req.params;
   const filters = pick(req.query, [
-    'searchTerm',
-    'firstName',
-    'lastName',
-    'email',
-    'gender',
-    'experienceLevel',
-    'location',
-    'language',
-    'agegroup',
-    'education',
-    'canHelpWith',
-    'professionalSkill',
-    'perferences',
-    'minHourRate',
-    'maxHourRate',
-  ]);
+  'searchTerm',
+  'role', // ✅ ADD THIS
+  'firstName',
+  'lastName',
+  'email',
+  'gender',
+  'experienceLevel',
+  'location',
+  'language',
+  'agegroup',
+  'education',
+  'canHelpWith',
+  'professionalSkill',
+  'perferences',
+  'minHourRate',
+  'maxHourRate',
+]);
   const options = pick(req.query, ['limit', 'page', 'sortBy', 'sortOrder']);
   const result = await serviceService.serviceBaseUser(
     categoryId!,
@@ -119,7 +120,6 @@ const deleteService = async (req: Request, res: Response) => {
   });
 };
 
-
 const getAllServiceLocations = catchAsync(
   async (req: Request, res: Response) => {
     const result = await serviceService.getAllServiceLocations(req.query);
@@ -139,5 +139,5 @@ export const serviceController = {
   serviceUserBaseUserController,
   singleUserService,
   deleteService,
-  getAllServiceLocations
+  getAllServiceLocations,
 };

@@ -401,24 +401,183 @@ const registerServiceAndSubscription = async (
   }
 };
 
+// const serviceBaseUser = async (
+//   categoryId: string,
+//   params: any,
+//   options: IOption,
+// ) => {
+//   const { searchTerm, minHourRate, maxHourRate, ...filters } = params;
+
+//   const { page, limit, skip, sortBy, sortOrder } = pagination(options);
+
+//   // ✅ Check category
+//   const category = await Category.findById(categoryId);
+//   if (!category) throw new AppError(404, 'Category not found');
+
+//   // ================= MATCH =================
+//   const match: any = {
+//     categoryId: new mongoose.Types.ObjectId(categoryId),
+//     'user.role': 'find job',
+//     'user.status': 'active',
+//   };
+
+//   // ================= SEARCH =================
+//   if (searchTerm) {
+//     match.$or = [
+//       { 'user.firstName': { $regex: searchTerm, $options: 'i' } },
+//       { 'user.lastName': { $regex: searchTerm, $options: 'i' } },
+//       { 'user.email': { $regex: searchTerm, $options: 'i' } },
+//       { 'user.location': { $regex: searchTerm, $options: 'i' } },
+//       { 'user.bio': { $regex: searchTerm, $options: 'i' } },
+//     ];
+//   }
+
+//   // ================= DYNAMIC FILTER =================
+//   for (const [key, value] of Object.entries(filters)) {
+//     if (!value) continue;
+
+//     // Hour rate handled separately
+//     if (key === 'minHourRate' || key === 'maxHourRate') continue;
+
+//     // location: match Service.location OR user.location (partial match)
+//     if (key === 'location') {
+//       const locStr = String(value).trim();
+//       if (locStr) {
+//         match.$and = match.$and || [];
+//         match.$and.push({
+//           $or: [
+//             { location: { $regex: locStr, $options: 'i' } },
+//             { 'user.location': { $regex: locStr, $options: 'i' } },
+//           ],
+//         });
+//       }
+//       continue;
+//     }
+
+//     // Array fields (multi-select)
+//     const arrayFields = [
+//       'language',
+//       'agegroup',
+//       'education',
+//       'canHelpWith',
+//       'professionalSkill',
+//       'perferences',
+//     ];
+
+//     if (arrayFields.includes(key)) {
+//       match[`user.${key}`] = { $in: Array.isArray(value) ? value : [value] };
+//     } else {
+//       match[`user.${key}`] = value;
+//     }
+//   }
+
+//   // ================= HOUR RATE RANGE =================
+//   if (minHourRate || maxHourRate) {
+//     match.hourRate = {};
+//     if (minHourRate) match.hourRate.$gte = Number(minHourRate);
+//     if (maxHourRate) match.hourRate.$lte = Number(maxHourRate);
+//   }
+
+//   // ================= PIPELINE =================
+//   const pipeline: mongoose.PipelineStage[] = [
+//     {
+//       $lookup: {
+//         from: 'users',
+//         localField: 'userId',
+//         foreignField: '_id',
+//         as: 'user',
+//       },
+//     },
+//     { $unwind: '$user' },
+
+//     { $match: match },
+
+//     {
+//       $sort: {
+//         [sortBy || 'createdAt']: sortOrder === 'asc' ? 1 : -1,
+//       },
+//     },
+
+//     { $skip: skip },
+//     { $limit: limit },
+
+//     {
+//       $project: {
+//         zip: 1,
+//         location: 1,
+//         hourRate: 1,
+//         gender: 1,
+//         days: 1,
+//         status: 1,
+//         createdAt: 1,
+//         user: {
+//           _id: 1,
+//           firstName: 1,
+//           lastName: 1,
+//           email: 1,
+//           role: 1,
+//           profileImage: 1,
+//           bio: 1,
+//           phone: 1,
+//           gender: 1,
+//           experienceLevel: 1,
+//           location: 1,
+//           language: 1,
+//           agegroup: 1,
+//           education: 1,
+//           canHelpWith: 1,
+//           professionalSkill: 1,
+//           perferences: 1,
+//         },
+//       },
+//     },
+//   ];
+
+//   const data = await Service.aggregate(pipeline);
+
+//   // ================= TOTAL COUNT =================
+//   const countPipeline = [
+//     ...pipeline.filter(
+//       (stage) =>
+//         !('$skip' in stage) && !('$limit' in stage) && !('$sort' in stage),
+//     ),
+//     { $count: 'total' },
+//   ];
+
+//   const totalResult = await Service.aggregate(countPipeline);
+//   const total = totalResult[0]?.total || 0;
+
+//   return {
+//     meta: { total, page, limit },
+//     data,
+//   };
+// };
+
+//==============================update code ===========================
+
 const serviceBaseUser = async (
   categoryId: string,
   params: any,
   options: IOption,
 ) => {
-  const { searchTerm, minHourRate, maxHourRate, ...filters } = params;
-
+  const { searchTerm, minHourRate, maxHourRate, role, ...filters } = params;
   const { page, limit, skip, sortBy, sortOrder } = pagination(options);
 
-  // ✅ Check category
+  // ✅ Category check
   const category = await Category.findById(categoryId);
   if (!category) throw new AppError(404, 'Category not found');
+
+  // ✅ Role validation (DIRECT match — no opposite logic)
+  if (!role) {
+    throw new AppError(400, 'Role is required (find job | find care)');
+  }
 
   // ================= MATCH =================
   const match: any = {
     categoryId: new mongoose.Types.ObjectId(categoryId),
-    'user.role': 'find job',
+    'user.role': role,
     'user.status': 'active',
+    status: 'pending',
   };
 
   // ================= SEARCH =================
@@ -433,13 +592,21 @@ const serviceBaseUser = async (
   }
 
   // ================= DYNAMIC FILTER =================
-  for (const [key, value] of Object.entries(filters)) {
-    if (!value) continue;
+  const arrayFields = [
+    'language',
+    'agegroup',
+    'education',
+    'canHelpWith',
+    'professionalSkill',
+    'perferences',
+  ];
 
-    // Hour rate handled separately
-    if (key === 'minHourRate' || key === 'maxHourRate') continue;
+  Object.entries(filters).forEach(([key, value]) => {
+    if (!value) return;
 
-    // location: match Service.location OR user.location (partial match)
+    if (key === 'minHourRate' || key === 'maxHourRate') return;
+
+    // location filter (service OR user)
     if (key === 'location') {
       const locStr = String(value).trim();
       if (locStr) {
@@ -451,35 +618,28 @@ const serviceBaseUser = async (
           ],
         });
       }
-      continue;
+      return;
     }
 
-    // Array fields (multi-select)
-    const arrayFields = [
-      'language',
-      'agegroup',
-      'education',
-      'canHelpWith',
-      'professionalSkill',
-      'perferences',
-    ];
-
+    // array filters
     if (arrayFields.includes(key)) {
-      match[`user.${key}`] = { $in: Array.isArray(value) ? value : [value] };
+      match[`user.${key}`] = {
+        $in: Array.isArray(value) ? value : [value],
+      };
     } else {
       match[`user.${key}`] = value;
     }
-  }
+  });
 
-  // ================= HOUR RATE RANGE =================
+  // ================= HOUR RATE =================
   if (minHourRate || maxHourRate) {
     match.hourRate = {};
     if (minHourRate) match.hourRate.$gte = Number(minHourRate);
     if (maxHourRate) match.hourRate.$lte = Number(maxHourRate);
   }
 
-  // ================= PIPELINE =================
-  const pipeline: mongoose.PipelineStage[] = [
+  // ================= BASE PIPELINE =================
+  const basePipeline: mongoose.PipelineStage[] = [
     {
       $lookup: {
         from: 'users',
@@ -489,9 +649,38 @@ const serviceBaseUser = async (
       },
     },
     { $unwind: '$user' },
-
     { $match: match },
+  ];
 
+  // ================= DATA PIPELINE =================
+  const dataPipeline: mongoose.PipelineStage[] = [
+    ...basePipeline,
+
+    // join reviews
+    {
+      $lookup: {
+        from: 'reviews',
+        localField: 'user._id',
+        foreignField: 'jobUserId',
+        as: 'reviews',
+      },
+    },
+
+    // rating calculation
+    {
+      $addFields: {
+        averageRating: {
+          $cond: [
+            { $gt: [{ $size: '$reviews' }, 0] },
+            { $avg: '$reviews.ratting' },
+            0,
+          ],
+        },
+        totalRatings: { $size: '$reviews' },
+      },
+    },
+
+    // sorting
     {
       $sort: {
         [sortBy || 'createdAt']: sortOrder === 'asc' ? 1 : -1,
@@ -501,15 +690,17 @@ const serviceBaseUser = async (
     { $skip: skip },
     { $limit: limit },
 
+    // projection
     {
       $project: {
-        zip: 1,
         location: 1,
         hourRate: 1,
         gender: 1,
         days: 1,
         status: 1,
         createdAt: 1,
+        averageRating: { $round: ['$averageRating', 1] },
+        totalRatings: 1,
         user: {
           _id: 1,
           firstName: 1,
@@ -533,18 +724,14 @@ const serviceBaseUser = async (
     },
   ];
 
-  const data = await Service.aggregate(pipeline);
+  const data = await Service.aggregate(dataPipeline);
 
-  // ================= TOTAL COUNT =================
-  const countPipeline = [
-    ...pipeline.filter(
-      (stage) =>
-        !('$skip' in stage) && !('$limit' in stage) && !('$sort' in stage),
-    ),
+  // ================= COUNT =================
+  const totalResult = await Service.aggregate([
+    ...basePipeline,
     { $count: 'total' },
-  ];
+  ]);
 
-  const totalResult = await Service.aggregate(countPipeline);
   const total = totalResult[0]?.total || 0;
 
   return {
