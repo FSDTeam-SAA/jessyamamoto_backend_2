@@ -22,7 +22,9 @@ router.get('/:messageId', messageController.getMessage);
 // UPDATE Routes
 router.put('/:messageId/edit', messageController.editMessage);
 router.patch('/:messageId/read', messageController.markMessageAsRead);
+router.put('/:messageId/read', messageController.markMessageAsRead);
 router.patch('/read', messageController.markMessagesAsRead);
+router.put('/read', messageController.markMessagesAsRead);
 
 // DELETE Routes
 router.delete('/:messageId/for-me', messageController.deleteMessageForMe);

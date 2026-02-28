@@ -21,10 +21,11 @@ const sendMessage = async (
     attachments: attachments || [],
   });
 
-  // Update conversation last message
+  // Update conversation last message - unreadCount is for the receiver only
   await Conversation.findByIdAndUpdate(conversationId, {
     lastMessage: message,
     lastMessageAt: new Date(),
+    lastMessageReceiverId: receiverId,
     $inc: { unreadCount: 1 },
   });
 
@@ -70,6 +71,14 @@ const getMessages = async (conversationId: string, userId: string) => {
   }
 
   return messages;
+};
+
+// READ - Get conversation IDs for given message IDs
+const getConversationIdsForMessages = async (messageIds: string[]) => {
+  const messages = await Message.find({ _id: { $in: messageIds } })
+    .select('conversationId')
+    .lean();
+  return [...new Set(messages.map((m) => m.conversationId?.toString()).filter(Boolean))];
 };
 
 // READ - Get single message by ID
@@ -139,11 +148,34 @@ const markAsRead = async (messageId: string, userId: string) => {
     { new: true },
   );
 
+  if (message) {
+    // Decrement conversation unread count (don't go below 0)
+    await Conversation.findOneAndUpdate(
+      { _id: message.conversationId, lastMessageReceiverId: userId },
+      { $inc: { unreadCount: -1 } },
+    );
+    // Ensure unreadCount never goes negative
+    await Conversation.updateOne(
+      { _id: message.conversationId, unreadCount: { $lt: 0 } },
+      { $set: { unreadCount: 0 } },
+    );
+  }
+
   return message;
 };
 
 // UPDATE - Mark multiple messages as read
 const markMultipleAsRead = async (messageIds: string[], userId: string) => {
+  // First get messages that will be updated (before update)
+  const toUpdate = await Message.find({
+    _id: { $in: messageIds },
+    receiverId: userId,
+    read: false,
+    deletedBy: { $ne: new Types.ObjectId(userId) },
+  })
+    .select('conversationId')
+    .lean();
+
   const result = await Message.updateMany(
     {
       _id: { $in: messageIds },
@@ -153,6 +185,24 @@ const markMultipleAsRead = async (messageIds: string[], userId: string) => {
     },
     { read: true },
   );
+
+  if (result.modifiedCount > 0 && toUpdate.length > 0) {
+    const convCounts = new Map<string, number>();
+    for (const m of toUpdate) {
+      const id = m.conversationId.toString();
+      convCounts.set(id, (convCounts.get(id) ?? 0) + 1);
+    }
+    for (const [convId, count] of convCounts) {
+      await Conversation.findOneAndUpdate(
+        { _id: convId, lastMessageReceiverId: userId },
+        { $inc: { unreadCount: -count } },
+      );
+      await Conversation.updateOne(
+        { _id: convId, unreadCount: { $lt: 0 } },
+        { $set: { unreadCount: 0 } },
+      );
+    }
+  }
 
   return result;
 };
@@ -214,6 +264,7 @@ const deleteMessageForEveryone = async (messageId: string, userId: string) => {
 export const messageService = {
   sendMessage,
   getMessages,
+  getConversationIdsForMessages,
   getMessageById,
   editMessage,
   markAsRead,
