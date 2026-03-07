@@ -12,12 +12,17 @@ router.post(
 );
 
 router.get('/', reviewController.getAllReview);
+router.get('/category/:categoryId', reviewController.categoryBaseAllReviews);
 router.get('/:id', reviewController.getSingleReview);
 router.put(
   '/:id',
   auth(userRole.admin, userRole['find job'], userRole['find care']),
   reviewController.updateReview,
 );
-router.delete('/:id', auth(userRole.admin, userRole['find job'], userRole['find care']), reviewController.deleteReview);
+router.delete(
+  '/:id',
+  auth(userRole.admin, userRole['find job'], userRole['find care']),
+  reviewController.deleteReview,
+);
 
 export const reviewRouter = router;

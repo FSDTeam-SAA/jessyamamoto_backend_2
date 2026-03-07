@@ -3,9 +3,7 @@ import Subscription from './subscription.model';
 import AppError from '../../error/appError';
 import { IOption } from '../../helper/pagenation';
 import pagination from '../../helper/pagenation';
-import User from '../user/user.model';
-import Stripe from 'stripe';
-import config from '../../config';
+
 
 const createSubscription = async (payload: ISubscription) => {
   const result = await Subscription.create(payload);
