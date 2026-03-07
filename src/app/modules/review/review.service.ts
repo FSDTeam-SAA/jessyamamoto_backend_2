@@ -1,5 +1,6 @@
 import AppError from '../../error/appError';
 import pagination, { IOption } from '../../helper/pagenation';
+import Category from '../category/category.model';
 import User from '../user/user.model';
 import { IReview } from './review.interface';
 import Review from './review.model';
@@ -93,10 +94,41 @@ const deleteReview = async (id: string) => {
   return review;
 };
 
+const categoryBaseAllReviews = async (categoryId: string, options: IOption) => {
+  const { limit, page, skip, sortBy, sortOrder } = pagination(options);
+  const category = await Category.findById(categoryId);
+
+  if (!category) {
+    throw new AppError(404, 'Category is not found');
+  }
+
+  const reviews = await Review.find({
+    jobUserId: { $in: category.findJobUser },
+  })
+    .populate('userId jobUserId')
+    .skip(skip)
+    .limit(limit)
+    .sort({ [sortBy]: sortOrder } as any);
+
+  const total = await Review.countDocuments({
+    jobUserId: { $in: category.findJobUser },
+  });
+
+  return {
+    data: reviews,
+    meta: {
+      total,
+      page,
+      limit,
+    },
+  };
+};
+
 export const reviewService = {
   createReview,
   getAllReview,
   getSingleReview,
   updateReview,
   deleteReview,
+  categoryBaseAllReviews,
 };

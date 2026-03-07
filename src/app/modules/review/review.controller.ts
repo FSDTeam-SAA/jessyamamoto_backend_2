@@ -64,10 +64,26 @@ const deleteReview = catchAsync(async (req, res) => {
   });
 });
 
+const categoryBaseAllReviews = catchAsync(async (req, res) => {
+  const options = pick(req.query, ['limit', 'page', 'sortBy', 'sortOrder']);
+  const result = await reviewService.categoryBaseAllReviews(
+    req.params.categoryId!,
+    options,
+  );
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Category base Review retrieved successfully',
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
 export const reviewController = {
   createReview,
   getAllReview,
   getSingleReview,
   updateReview,
   deleteReview,
+  categoryBaseAllReviews,
 };
