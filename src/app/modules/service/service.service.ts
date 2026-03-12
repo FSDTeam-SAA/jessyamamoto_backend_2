@@ -981,11 +981,13 @@ const deleteService = async (userId: string) => {
 };
 
 const getAllServiceLocations = async (query: any, userId?: string) => {
-  const { searchTerm, limit } = query;
+  const { searchTerm, limit, categoryId } = query;
 
   const match: any = {};
 
-  if (userId) {
+  if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
+    match.categoryId = new mongoose.Types.ObjectId(categoryId);
+  } else if (userId) {
     const user = await User.findById(userId).select('category');
 
     if (user?.category?.length) {
