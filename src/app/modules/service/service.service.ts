@@ -981,41 +981,99 @@ const deleteService = async (userId: string) => {
 };
 
 const getAllServiceLocations = async (query: any, userId?: string) => {
-  const { searchTerm, limit } = query;
+  const { searchTerm, limit, categoryId } = query;
 
   const match: any = {};
+  let user: any = null;
 
   if (userId) {
-    const user = await User.findById(userId).select('category');
+    user = await User.findById(userId).select('role category status');
+  }
 
-    if (user?.category?.length) {
+  if (user?.role === 'find job') {
+    match['user.role'] = 'find care';
+    match['user.status'] = 'active';
+    match.status = 'pending';
+  } else if (user?.role === 'find care') {
+    match['user.role'] = 'find job';
+    match['user.status'] = 'active';
+    match.status = 'pending';
+  }
+
+  if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
+    match.categoryId = new mongoose.Types.ObjectId(categoryId);
+  } else if (user?.category?.length) {
       match.categoryId = { $in: user.category };
-    }
   }
 
   if (searchTerm) {
-    match.location = {
-      $exists: true,
-      $nin: [null, ''],
-      $regex: searchTerm,
-      $options: 'i',
-    };
+    match.$and = match.$and || [];
+    match.$and.push({
+      $or: [
+        {
+          location: {
+            $exists: true,
+            $nin: [null, ''],
+            $regex: searchTerm,
+            $options: 'i',
+          },
+        },
+        {
+          'user.location': {
+            $exists: true,
+            $nin: [null, ''],
+            $regex: searchTerm,
+            $options: 'i',
+          },
+        },
+      ],
+    });
   } else {
-    match.location = {
-      $exists: true,
-      $nin: [null, ''],
-    };
+    match.$and = match.$and || [];
+    match.$and.push({
+      $or: [
+        {
+          location: {
+            $exists: true,
+            $nin: [null, ''],
+          },
+        },
+        {
+          'user.location': {
+            $exists: true,
+            $nin: [null, ''],
+          },
+        },
+      ],
+    });
   }
 
   const pipeline: any[] = [
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'userId',
+        foreignField: '_id',
+        as: 'user',
+      },
+    },
+    { $unwind: '$user' },
     { $match: match },
     {
+      $addFields: {
+        resolvedLocation: { $ifNull: ['$location', '$user.location'] },
+        resolvedZip: { $ifNull: ['$zip', '$user.zip'] },
+        resolvedLat: { $ifNull: ['$lat', '$user.lat'] },
+        resolvedLng: { $ifNull: ['$lng', '$user.lng'] },
+      },
+    },
+    {
       $group: {
-        _id: '$location',
-        location: { $first: '$location' },
-        zip: { $first: '$zip' },
-        lat: { $first: '$lat' },
-        lng: { $first: '$lng' },
+        _id: '$resolvedLocation',
+        location: { $first: '$resolvedLocation' },
+        zip: { $first: '$resolvedZip' },
+        lat: { $first: '$resolvedLat' },
+        lng: { $first: '$resolvedLng' },
         totalServices: { $sum: 1 },
       },
     },
