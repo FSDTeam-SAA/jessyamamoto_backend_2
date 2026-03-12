@@ -13,6 +13,7 @@ router.post(
 
 router.get(
   '/locations',
+  serviceAuth(userRole['find care'], userRole['find job']),
   serviceController.getAllServiceLocations,
 );
 

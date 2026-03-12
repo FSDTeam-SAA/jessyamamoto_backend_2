@@ -122,7 +122,10 @@ const deleteService = async (req: Request, res: Response) => {
 
 const getAllServiceLocations = catchAsync(
   async (req: Request, res: Response) => {
-    const result = await serviceService.getAllServiceLocations(req.query);
+    const result = await serviceService.getAllServiceLocations(
+      req.query,
+      req.user?.id,
+    );
 
     sendResponse(res, {
       statusCode: 200,
