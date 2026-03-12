@@ -980,10 +980,18 @@ const deleteService = async (userId: string) => {
   return result;
 };
 
-const getAllServiceLocations = async (query: any) => {
+const getAllServiceLocations = async (query: any, userId?: string) => {
   const { searchTerm, limit } = query;
 
   const match: any = {};
+
+  if (userId) {
+    const user = await User.findById(userId).select('category');
+
+    if (user?.category?.length) {
+      match.categoryId = { $in: user.category };
+    }
+  }
 
   if (searchTerm) {
     match.location = {
