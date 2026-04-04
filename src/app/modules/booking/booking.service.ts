@@ -437,6 +437,17 @@ const createBooking = async (payload: {
 
   const provider: any = service.userId;
 
+  // Find care books services offered by find job (service provider) users only
+  const providerRole = String(provider?.role ?? '')
+    .toLowerCase()
+    .trim();
+  if (providerRole !== 'find job') {
+    throw new AppError(
+      400,
+      'Bookings are only available for find job service providers',
+    );
+  }
+
   // Prevent self booking
   if (provider?._id?.toString() === payload.userId) {
     throw new AppError(400, 'You cannot book your own service');
@@ -490,12 +501,15 @@ const createBooking = async (payload: {
   const adminFeeCents = Math.round(totalAmountCents * 0.1);
   const providerAmountCents = totalAmountCents - adminFeeCents;
 
+  const platformOnlyCheckout =
+    config.stripe.bookingPlatformOnlyCheckout === true;
+
   // TRANSACTION ✅
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const checkoutSession = await stripe.checkout.sessions.create({
+    const sessionCreateParams: Stripe.Checkout.SessionCreateParams = {
       mode: 'payment',
       payment_method_types: ['card'],
       customer_email: user.email,
@@ -512,12 +526,8 @@ const createBooking = async (payload: {
           quantity: 1,
         },
       ],
-      payment_intent_data: {
-        application_fee_amount: adminFeeCents,
-        transfer_data: { destination: provider.stripeAccountId },
-      },
-      success_url: `${config.frontendUrl}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${config.frontendUrl}/booking-cancel`,
+      success_url: config.stripeCheckoutUrls.bookingSuccessUrl,
+      cancel_url: config.stripeCheckoutUrls.bookingCancelUrl,
       metadata: {
         userId: payload.userId,
         serviceId: payload.serviceId,
@@ -529,8 +539,45 @@ const createBooking = async (payload: {
         totalAmount: totalAmountCents.toString(),
         adminFee: adminFeeCents.toString(),
         providerAmount: providerAmountCents.toString(),
+        ...(platformOnlyCheckout ? { connectTransfer: 'skipped_dev' } : {}),
       },
-    });
+    };
+
+    if (!platformOnlyCheckout) {
+      sessionCreateParams.payment_intent_data = {
+        application_fee_amount: adminFeeCents,
+        transfer_data: { destination: provider.stripeAccountId },
+      };
+    }
+
+    let checkoutSession: Stripe.Checkout.Session;
+    try {
+      checkoutSession = await stripe.checkout.sessions.create(
+        sessionCreateParams,
+      );
+    } catch (err: unknown) {
+      const stripeErr = err as {
+        type?: string;
+        message?: string;
+        raw?: { message?: string };
+      };
+      const rawMsg = String(
+        stripeErr.raw?.message ?? stripeErr.message ?? '',
+      ).toLowerCase();
+      if (
+        stripeErr.type === 'StripeInvalidRequestError' &&
+        (rawMsg.includes('destination') ||
+          rawMsg.includes('capabilities') ||
+          rawMsg.includes('transfers') ||
+          rawMsg.includes('legacy_payments'))
+      ) {
+        throw new AppError(
+          400,
+          'This provider’s Stripe account is not ready to receive payouts (Connect transfers not active). They must finish Stripe Connect onboarding in the Stripe Dashboard. For local testing, add BOOKING_PLATFORM_ONLY_CHECKOUT=true to your server .env.',
+        );
+      }
+      throw err;
+    }
 
     const [createdBooking] = await Booking.create(
       [
@@ -833,7 +880,7 @@ const getAllMyBooking = async (
 
   // Filter upcoming bookings
   if (upcoming === 'true') {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().slice(0, 10);
     andCondition.push({ date: { $gte: today } });
   }
 
@@ -922,7 +969,7 @@ const getMyServiceBookings = async (
 
   // Filter upcoming bookings
   if (upcoming === 'true') {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().slice(0, 10);
     andCondition.push({ date: { $gte: today } });
   }
 

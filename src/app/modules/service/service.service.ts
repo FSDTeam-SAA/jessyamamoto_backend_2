@@ -296,8 +296,8 @@ const registerServiceAndSubscription = async (
           quantity: 1,
         },
       ],
-      success_url: `${config.frontendUrl}/payment-success`,
-      cancel_url: `${config.frontendUrl}/payment-cancel`,
+      success_url: config.stripeCheckoutUrls.successUrl,
+      cancel_url: config.stripeCheckoutUrls.cancelUrl,
       metadata: {
         userId: user._id.toString(),
         subscriptionId: subscriptionDoc._id.toString(),
