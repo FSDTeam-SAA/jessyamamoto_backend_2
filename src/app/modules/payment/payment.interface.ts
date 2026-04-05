@@ -1,5 +1,13 @@
 import { Types } from 'mongoose';
 
+export interface IPendingServiceRegistration {
+  categoryId: string;
+  zip?: string;
+  gender: string;
+  days?: string[];
+  hourRate?: number;
+}
+
 export interface IPayment {
   user?: Types.ObjectId;
   subscription?: Types.ObjectId;
@@ -9,7 +17,7 @@ export interface IPayment {
   amount: number;
   currency: string;
   status: 'pending' | 'completed' | 'failed' | 'refunded';
-  paymentType: 'subscription' | 'shop';
+  paymentType: 'subscription' | 'booking';
   userType: 'findJob' | 'findCare';
   createdAt?: Date;
   updatedAt?: Date;
@@ -17,4 +25,5 @@ export interface IPayment {
   booking?: Types.ObjectId;
   adminFree?: number;
   serviceProviderFree?: number;
+  pendingServiceRegistration?: IPendingServiceRegistration;
 }
