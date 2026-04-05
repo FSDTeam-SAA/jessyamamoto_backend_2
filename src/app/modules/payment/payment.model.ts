@@ -30,9 +30,13 @@ const paymentSchema = new mongoose.Schema<IPayment>(
     adminFree: {
       type: Number,
     },
-    serviceProviderFree:{
-      type:Number
-    }
+    serviceProviderFree: {
+      type: Number,
+    },
+    pendingServiceRegistration: {
+      type: mongoose.Schema.Types.Mixed,
+      required: false,
+    },
   },
   { timestamps: true },
 );

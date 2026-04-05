@@ -30,7 +30,12 @@ const getAllCategory = catchAsync(async (req, res) => {
     statusCode: 200,
     success: true,
     message: 'Category retrieved successfully',
-    meta: result.meta,
+    meta: {
+      ...result.meta,
+      /** Each new service category needs its own Stripe checkout (POST /service/register-service). */
+      serviceActivationRequiresPaidMembership: true,
+      perCategoryPaymentRequired: true,
+    },
     data: result.data,
   });
 });

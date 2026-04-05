@@ -108,6 +108,7 @@ import Payment from '../modules/payment/payment.model';
 import User from '../modules/user/user.model';
 import Subscription from '../modules/subscription/subscription.model';
 import Booking from '../modules/booking/booking.model';
+import { serviceService } from '../modules/service/service.service';
 
 const stripe = new Stripe(config.stripe.secretKey!);
 
@@ -173,6 +174,8 @@ const webHookHandler = async (req: Request, res: Response) => {
           user.subscription = subscription._id;
           user.subscriptionExpiry = expiry;
           await user.save();
+
+          await serviceService.completePendingServiceRegistration(session.id);
 
           console.log('✅ Subscription activated for user:', user._id);
         }

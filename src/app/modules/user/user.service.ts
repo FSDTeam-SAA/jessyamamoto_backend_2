@@ -1,11 +1,83 @@
 import Stripe from 'stripe';
+import mongoose from 'mongoose';
 import AppError from '../../error/appError';
 import { fileUploader } from '../../helper/fileUploder';
 import pagination, { IOption } from '../../helper/pagenation';
+import Payment from '../payment/payment.model';
+import Service from '../service/service.model';
 import { IUser } from './user.interface';
 import User from './user.model';
 import config from '../../config';
 import { getLocationFromZip } from '../../helper/geocode';
+
+/**
+ * Category ids for home "My Services": completed subscription payments for this user.
+ * Resolves category from payment.category (preferred), linked payment.service → Service.categoryId,
+ * or pendingServiceRegistration.categoryId (edge cases).
+ */
+export const getMyServicesPaidCategoryIds = async (
+  userId: string,
+): Promise<string[]> => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return [];
+  }
+  const uid = new mongoose.Types.ObjectId(userId);
+
+  const payments = await Payment.find({
+    user: uid,
+    status: 'completed',
+    paymentType: 'subscription',
+  })
+    .select('category service pendingServiceRegistration createdAt')
+    .sort({ createdAt: 1 })
+    .lean();
+
+  const serviceOidList = payments
+    .map((p) => p.service)
+    .filter((s): s is mongoose.Types.ObjectId => s != null);
+
+  const serviceCategoryByServiceId = new Map<string, string>();
+  if (serviceOidList.length > 0) {
+    const svcDocs = await Service.find({
+      _id: { $in: serviceOidList },
+    })
+      .select('_id categoryId')
+      .lean();
+    for (const s of svcDocs) {
+      const cid = s.categoryId?.toString();
+      if (cid) serviceCategoryByServiceId.set(s._id.toString(), cid);
+    }
+  }
+
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+
+  const pushCat = (raw: string | undefined | null) => {
+    const id = raw?.toString().trim();
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    ordered.push(id);
+  };
+
+  for (const p of payments) {
+    if (p.category) {
+      pushCat(p.category.toString());
+      continue;
+    }
+    if (p.service) {
+      pushCat(serviceCategoryByServiceId.get(p.service.toString()));
+      continue;
+    }
+    const pending = p.pendingServiceRegistration as
+      | { categoryId?: string }
+      | undefined;
+    if (pending?.categoryId) {
+      pushCat(pending.categoryId);
+    }
+  }
+
+  return ordered;
+};
 
 const createUser = async (payload: IUser) => {
   const user = await User.findOne({ email: payload.email });
@@ -143,7 +215,10 @@ const profile = async (id: string) => {
   if (!result) {
     throw new AppError(404, 'User not found');
   }
-  return result;
+  return {
+    ...result.toObject(),
+    myServicesPaidCategoryIds: await getMyServicesPaidCategoryIds(id),
+  };
 };
 
 const updateMyProfile = async (
@@ -193,25 +268,52 @@ const updateMyProfile = async (
 
 const stripe = new Stripe(config.stripe.secretKey!);
 
-// stripe account create
+// stripe account create (Stripe requires 5–22 chars for statement_descriptor)
 const formatStatementDescriptor = (text: string) => {
   if (!text) return 'USER SERVICE';
 
-  return (
-    text
-      .toUpperCase()
-      .replace(/[^A-Z0-9 ]/g, '')
-      .substring(0, 22)
-      .trim() || 'USER SERVICE'
-  );
+  let s = text
+    .toUpperCase()
+    .replace(/[^A-Z0-9 ]/g, '')
+    .substring(0, 22)
+    .trim();
+
+  if (!s) return 'USER SERVICE';
+
+  if (s.length < 5) {
+    s = `${s} SVC`.substring(0, 22).trim();
+    if (s.length < 5) return 'USER SERVICE';
+  }
+
+  return s;
 };
+
+const createAccountOnboardingLink = (accountId: string) =>
+  stripe.accountLinks.create({
+    account: accountId,
+    refresh_url: `${config.frontendUrl}/connect/refresh`,
+    return_url: `${config.frontendUrl}/stripe-account-success`,
+    type: 'account_onboarding',
+  });
 
 const createStripeAccount = async (userId: string) => {
   const user = await User.findById(userId);
   if (!user) throw new AppError(404, 'User not found');
 
   if (user.stripeAccountId) {
-    throw new AppError(400, 'User already has a stripe account');
+    const existing = await stripe.accounts.retrieve(user.stripeAccountId);
+    if (!existing.details_submitted) {
+      const accountLink = await createAccountOnboardingLink(user.stripeAccountId);
+      return {
+        url: accountLink.url,
+        message: 'Continue Stripe onboarding',
+      };
+    }
+    const login = await stripe.accounts.createLoginLink(user.stripeAccountId);
+    return {
+      url: login.url,
+      message: 'Stripe account is ready',
+    };
   }
 
   const account = await stripe.accounts.create({
@@ -230,7 +332,9 @@ const createStripeAccount = async (userId: string) => {
     },
     settings: {
       payments: {
-        statement_descriptor: formatStatementDescriptor(user.firstName),
+        statement_descriptor: formatStatementDescriptor(
+          `${user.firstName} ${user.lastName}`.trim(),
+        ),
       },
     },
   } as any);
@@ -242,12 +346,7 @@ const createStripeAccount = async (userId: string) => {
   user.stripeAccountId = account.id;
   await user.save();
 
-  const accountLink = await stripe.accountLinks.create({
-    account: account.id,
-    refresh_url: `${config.frontendUrl}/connect/refresh`,
-    return_url: `${config.frontendUrl}/stripe-account-success`,
-    type: 'account_onboarding',
-  });
+  const accountLink = await createAccountOnboardingLink(account.id);
 
   return {
     url: accountLink.url,
@@ -264,12 +363,33 @@ const getStripeAccount = async (userId: string) => {
     throw new AppError(400, 'User does not have a stripe account');
   }
 
-  const account = await stripe.accounts.createLoginLink(user.stripeAccountId);
-  if (!account) {
-    throw new AppError(400, 'Failed to retrieve stripe account');
+  const connected = await stripe.accounts.retrieve(user.stripeAccountId);
+
+  if (!connected.details_submitted) {
+    const accountLink = await createAccountOnboardingLink(user.stripeAccountId);
+    return {
+      url: accountLink.url,
+      message: 'Complete Stripe onboarding to open the dashboard',
+    };
   }
 
-  return account;
+  try {
+    const login = await stripe.accounts.createLoginLink(user.stripeAccountId);
+    if (!login) {
+      throw new AppError(400, 'Failed to retrieve stripe account');
+    }
+    return login;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/onboarding|not completed/i.test(msg)) {
+      const accountLink = await createAccountOnboardingLink(user.stripeAccountId);
+      return {
+        url: accountLink.url,
+        message: 'Complete Stripe onboarding to open the dashboard',
+      };
+    }
+    throw err;
+  }
 };
 
 export const userService = {
@@ -282,4 +402,5 @@ export const userService = {
   updateMyProfile,
   createStripeAccount,
   getStripeAccount,
+  getMyServicesPaidCategoryIds,
 };

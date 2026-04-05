@@ -250,154 +250,205 @@ const registerServiceAndSubscription = async (
     }
   }
 
-  /* ================= SUBSCRIPTION STATE ================= */
-  const now = new Date();
-  const hasActiveSubscription =
-    user.isSubscription &&
-    user.subscriptionExpiry &&
-    user.subscriptionExpiry > now;
+  /* ================= EACH CATEGORY = ITS OWN STRIPE PAYMENT ================= */
+  if (!payload.categoryId) {
+    throw new AppError(400, 'categoryId is required');
+  }
+  if (!mongoose.Types.ObjectId.isValid(payload.categoryId)) {
+    throw new AppError(400, 'Invalid categoryId');
+  }
+  const categoryObjectId = new mongoose.Types.ObjectId(payload.categoryId);
 
-  /* ================= BLOCK DOUBLE SUBSCRIBE ================= */
-
-  if (
-    hasActiveSubscription &&
-    payload.subscriptionId &&
-    payload.forceSubscribe === true
-  ) {
-    throw new AppError(400, 'You already have an active subscription');
+  const existingInCategory = await Service.findOne({
+    userId: user._id,
+    categoryId: categoryObjectId,
+  });
+  if (existingInCategory) {
+    throw new AppError(
+      400,
+      'You already have a service in this category. Each additional category requires a separate payment.',
+    );
   }
 
-  // if (hasActiveSubscription && payload.subscriptionId) {
-  //   throw new AppError(400, 'You already have an active subscription');
-  // }
+  const effectiveSubscriptionId =
+    payload.subscriptionId != null &&
+    String(payload.subscriptionId).trim() !== ''
+      ? String(payload.subscriptionId).trim()
+      : '';
 
-  /* ================= STRIPE CHECKOUT ================= */
-  let checkoutSession: Stripe.Checkout.Session | null = null;
-  let subscriptionDoc: any = null;
+  if (!effectiveSubscriptionId) {
+    throw new AppError(
+      400,
+      'Select a membership plan and pay to activate this category (one payment per service category).',
+    );
+  }
 
-  if (!hasActiveSubscription && payload.subscriptionId) {
-    subscriptionDoc = await Subscription.findById(payload.subscriptionId);
-    if (!subscriptionDoc) throw new AppError(404, 'Subscription not found');
+  const subscriptionDoc = await Subscription.findById(effectiveSubscriptionId);
+  if (!subscriptionDoc) throw new AppError(404, 'Subscription not found');
 
-    checkoutSession = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      payment_method_types: ['card'],
-      customer_email: user.email,
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            unit_amount: subscriptionDoc.price * 100,
-            product_data: {
-              name: subscriptionDoc.title,
-              description: subscriptionDoc.description,
-            },
+  const checkoutSession = await stripe.checkout.sessions.create({
+    mode: 'payment',
+    payment_method_types: ['card'],
+    customer_email: user.email,
+    line_items: [
+      {
+        price_data: {
+          currency: 'usd',
+          unit_amount: subscriptionDoc.price * 100,
+          product_data: {
+            name: subscriptionDoc.title,
+            description: subscriptionDoc.description,
           },
-          quantity: 1,
         },
-      ],
-      success_url: config.stripeCheckoutUrls.successUrl,
-      cancel_url: config.stripeCheckoutUrls.cancelUrl,
-      metadata: {
-        userId: user._id.toString(),
-        subscriptionId: subscriptionDoc._id.toString(),
-        paymentType: 'subscription',
+        quantity: 1,
       },
-    });
+    ],
+    success_url: config.stripeCheckoutUrls.successUrl,
+    cancel_url: config.stripeCheckoutUrls.cancelUrl,
+    metadata: {
+      userId: user._id.toString(),
+      subscriptionId: subscriptionDoc._id.toString(),
+      paymentType: 'subscription',
+    },
+  });
+
+  await Payment.create({
+    user: user._id,
+    subscription: subscriptionDoc._id,
+    category: categoryObjectId,
+    amount: subscriptionDoc.price,
+    currency: 'usd',
+    stripeSessionId: checkoutSession.id,
+    status: 'pending',
+    paymentType: 'subscription',
+    userType: user.role === 'find job' ? 'findJob' : 'findCare',
+    pendingServiceRegistration: {
+      categoryId: payload.categoryId,
+      zip: payload.zip != null ? String(payload.zip) : undefined,
+      gender: payload.gender,
+      days: payload.days,
+      hourRate:
+        user.role === 'find job' && payload.hourRate != null
+          ? Number(payload.hourRate)
+          : undefined,
+    },
+  });
+
+  return {
+    service: null,
+    checkoutUrl: checkoutSession.url,
+  };
+};
+
+/** Run after Stripe checkout.session.completed for subscription payments. */
+const completePendingServiceRegistration = async (stripeSessionId: string) => {
+  const payment = await Payment.findOne({ stripeSessionId });
+  if (!payment?.pendingServiceRegistration) return;
+
+  const pending = payment.pendingServiceRegistration;
+  const regUser = await User.findById(payment.user);
+  if (!regUser) {
+    console.warn('⚠️ Pending service: user not found', payment.user);
+    return;
   }
 
-  /* ================= DB TRANSACTION ================= */
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  let geoData = null;
+  if (pending.zip) {
+    geoData = await getLocationFromZip(pending.zip.toString());
+  }
+
+  const dbSession = await mongoose.startSession();
+  dbSession.startTransaction();
 
   try {
-    /* ---------- PAYMENT RECORD ---------- */
-    if (checkoutSession && subscriptionDoc) {
-      await Payment.create(
-        [
-          {
-            user: user._id,
-            subscription: subscriptionDoc._id,
-            amount: subscriptionDoc.price,
-            currency: 'usd',
-            stripeSessionId: checkoutSession.id,
-            status: 'pending',
-            paymentType: 'subscription',
-            userType: user.role === 'find job' ? 'findJob' : 'findCare',
-          },
-        ],
-        { session },
-      );
+    const categoryOk = await Category.findById(pending.categoryId).session(
+      dbSession,
+    );
+    if (!categoryOk) {
+      throw new AppError(404, 'Category not found for pending registration');
     }
 
-    /* ---------- CREATE SERVICE ---------- */
-    const service = await Service.create(
+    const existing = await Service.findOne({
+      userId: regUser._id,
+      categoryId: pending.categoryId,
+    }).session(dbSession);
+
+    if (existing) {
+      await Payment.findByIdAndUpdate(
+        payment._id,
+        {
+          $set: { service: existing._id },
+          $unset: { pendingServiceRegistration: 1 },
+        },
+        { session: dbSession },
+      );
+      await dbSession.commitTransaction();
+      return;
+    }
+
+    const [created] = await Service.create(
       [
         {
-          userId: user._id,
-          categoryId: payload.categoryId,
-
-          // ✅ auto from zip
-          zip: payload.zip,
+          userId: regUser._id,
+          categoryId: pending.categoryId,
+          zip: pending.zip,
           location: geoData?.location,
           lat: geoData?.lat,
           lng: geoData?.lng,
-
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          gender: payload.gender,
-          hourRate: user.role === 'find job' ? payload.hourRate : undefined,
-          days: payload.days,
+          email: regUser.email,
+          firstName: regUser.firstName,
+          lastName: regUser.lastName,
+          gender: pending.gender,
+          hourRate:
+            regUser.role === 'find job' && pending.hourRate != null
+              ? pending.hourRate
+              : undefined,
+          days: pending.days,
         },
       ],
-      { session },
+      { session: dbSession },
     );
 
-    /* ---------- UPDATE USER ---------- */
     await User.findByIdAndUpdate(
-      user._id,
-
+      regUser._id,
       {
         $addToSet: {
-          category: payload.categoryId,
-          service: service[0]?._id,
+          category: pending.categoryId,
+          service: created!._id,
         },
+        ...(geoData && {
+          location: geoData.location,
+          lat: geoData.lat,
+          lng: geoData.lng,
+        }),
+        ...(pending.zip && { zip: pending.zip }),
       },
-      { session },
+      { session: dbSession },
     );
 
-    await User.findByIdAndUpdate(
-      user._id,
-      {
-        location: geoData?.location,
-        lat: geoData?.lat,
-        lng: geoData?.lng,
-        zip: payload.zip,
-      },
-      { session },
-    );
-
-    /* ---------- UPDATE CATEGORY ---------- */
     await Category.findByIdAndUpdate(
-      payload.categoryId,
-      user.role === 'find care'
-        ? { $addToSet: { findCareUser: user._id } }
-        : { $addToSet: { findJobUser: user._id } },
-      { session },
+      pending.categoryId,
+      regUser.role === 'find care'
+        ? { $addToSet: { findCareUser: regUser._id } }
+        : { $addToSet: { findJobUser: regUser._id } },
+      { session: dbSession },
     );
 
-    await session.commitTransaction();
-    session.endSession();
+    await Payment.findByIdAndUpdate(
+      payment._id,
+      {
+        $set: { service: created!._id },
+        $unset: { pendingServiceRegistration: 1 },
+      },
+      { session: dbSession },
+    );
 
-    return {
-      service: service[0],
-      checkoutUrl: checkoutSession?.url || null,
-    };
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    throw error;
+    await dbSession.commitTransaction();
+  } catch (e) {
+    await dbSession.abortTransaction();
+    throw e;
+  } finally {
+    dbSession.endSession();
   }
 };
 
@@ -1091,6 +1142,7 @@ const getAllServiceLocations = async (query: any, userId?: string) => {
 
 export const serviceService = {
   registerServiceAndSubscription,
+  completePendingServiceRegistration,
   serviceBaseUser,
   serviceUserBaseUser,
   singleUserService,

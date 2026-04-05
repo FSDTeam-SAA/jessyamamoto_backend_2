@@ -6,7 +6,12 @@ const sendResponse = <T>(
     statusCode: number;
     success: boolean;
     message: string;
-    meta?: { total: number; page: number; limit: number };
+    meta?: {
+      total: number;
+      page: number;
+      limit: number;
+      [key: string]: unknown;
+    };
     data?: T;
   },
 ) => {

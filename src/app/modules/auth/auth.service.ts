@@ -10,6 +10,7 @@ import sendMailer from '../../helper/sendMailer';
 import bcrypt from 'bcryptjs';
 import createOtpTemplate from '../../utils/createOtpTemplate';
 import { userRole } from '../user/user.constant';
+import { getMyServicesPaidCategoryIds } from '../user/user.service';
 
 const registerUser = async (payload: Partial<IUser>) => {
   const exist = await User.findOne({ email: payload.email });
@@ -73,7 +74,14 @@ const loginUser = async (payload: Partial<IUser>) => {
   );
 
   const { password, ...userWithoutPassword } = user.toObject();
-  return { accessToken, refreshToken, user: userWithoutPassword };
+  const myServicesPaidCategoryIds = await getMyServicesPaidCategoryIds(
+    user._id.toString(),
+  );
+  return {
+    accessToken,
+    refreshToken,
+    user: { ...userWithoutPassword, myServicesPaidCategoryIds },
+  };
 };
 
 const refreshToken = async (token: string) => {
@@ -100,7 +108,13 @@ const refreshToken = async (token: string) => {
   );
 
   const { password, ...userWithoutPassword } = user.toObject();
-  return { accessToken, user: userWithoutPassword };
+  const myServicesPaidCategoryIds = await getMyServicesPaidCategoryIds(
+    user._id.toString(),
+  );
+  return {
+    accessToken,
+    user: { ...userWithoutPassword, myServicesPaidCategoryIds },
+  };
 };
 
 const forgotPassword = async (email: string) => {
@@ -176,10 +190,13 @@ const resetPassword = async (email: string, newPassword: string) => {
   );
 
   const { password, ...userWithoutPassword } = user.toObject();
+  const myServicesPaidCategoryIds = await getMyServicesPaidCategoryIds(
+    user._id.toString(),
+  );
   return {
     accessToken,
     refreshToken,
-    user: userWithoutPassword,
+    user: { ...userWithoutPassword, myServicesPaidCategoryIds },
   };
 };
 

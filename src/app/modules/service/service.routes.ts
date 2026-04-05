@@ -1,7 +1,8 @@
 import express from 'express';
 import { serviceController } from './service.controller';
 import { userRole } from '../user/user.constant';
-import { serviceAuth } from '../../middlewares/auth';
+import { auth, serviceAuth } from '../../middlewares/auth';
+import { requirePaidSubscription } from '../../middlewares/requireSubscription';
 
 const router = express.Router();
 
@@ -13,31 +14,35 @@ router.post(
 
 router.get(
   '/locations',
-  serviceAuth(userRole['find care'], userRole['find job']),
+  auth(userRole['find care'], userRole['find job']),
+  requirePaidSubscription(),
   serviceController.getAllServiceLocations,
 );
 
 router.get(
   '/service-base-user/:categoryId',
-  serviceAuth(userRole['find care'], userRole['find job']),
+  auth(userRole['find care'], userRole['find job']),
+  requirePaidSubscription(),
   serviceController.serviceBaseUserController,
 );
 
 router.get(
   '/service-user-base-user/:categoryId',
-  serviceAuth(userRole['find care'], userRole['find job']),
+  auth(userRole['find care'], userRole['find job']),
+  requirePaidSubscription(),
   serviceController.serviceUserBaseUserController,
 );
 
 router.get(
   '/:userId',
-  serviceAuth(userRole['find care'], userRole['find job']),
+  auth(userRole['find care'], userRole['find job']),
+  requirePaidSubscription(),
   serviceController.singleUserService,
 );
 
 router.delete(
   '/:userId',
-  serviceAuth(userRole.admin),
+  auth(userRole.admin),
   serviceController.deleteService,
 );
 
