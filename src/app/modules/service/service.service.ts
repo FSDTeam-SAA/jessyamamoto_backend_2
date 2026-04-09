@@ -204,7 +204,10 @@ import Stripe from 'stripe';
 import config from '../../config';
 import mongoose from 'mongoose';
 import pagination, { IOption } from '../../helper/pagenation';
-import { getLocationFromZip } from '../../helper/geocode';
+import {
+  getLocationFromZip,
+  normalizeUsZip,
+} from '../../helper/geocode';
 
 const stripe = new Stripe(config.stripe.secretKey!);
 
@@ -228,12 +231,31 @@ const registerServiceAndSubscription = async (
       );
     }
 
-    /* ================= GEO FROM ZIP ================= */
-    if (payload.zip) {
-      geoData = await getLocationFromZip(payload.zip.toString());
-
-      if (!geoData) {
-        throw new AppError(400, 'Invalid zip code');
+    /* ================= GEO FROM ZIP / LOCATION ================= */
+    if (payload.zip != null && String(payload.zip).trim() !== '') {
+      const raw = String(payload.zip).trim();
+      const normalized = normalizeUsZip(raw);
+      if (normalized) {
+        payload.zip = normalized;
+        geoData = await getLocationFromZip(normalized);
+        if (!geoData) {
+          console.warn(
+            '[registerService] Geocode miss for zip %s — continuing checkout without lat/lng',
+            normalized,
+          );
+        }
+      } else if (payload.role === 'find job') {
+        throw new AppError(
+          400,
+          'Enter a valid US ZIP code (5 digits, e.g. 94102)',
+        );
+      } else {
+        geoData = await getLocationFromZip(raw);
+        if (!geoData) {
+          console.warn(
+            `[registerService] Geocode miss for location "${raw}" — continuing checkout without lat/lng`,
+          );
+        }
       }
     }
 

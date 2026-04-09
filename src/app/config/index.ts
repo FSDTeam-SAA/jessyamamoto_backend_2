@@ -45,9 +45,9 @@ export default {
     jwtSecret: process.env.JWT_SECRET,
     jwtExpire: process.env.JWT_EXPIRE,
     accessTokenSecret: process.env.ACCESS_TOKEN_SECRET,
-    accessTokenExpires: process.env.ACCESS_TOKEN_EXPIRES,
+    accessTokenExpires: process.env.ACCESS_TOKEN_EXPIRES || '30d',
     refreshTokenSecret: process.env.REFRESH_TOKEN_SECRET,
-    refreshTokenExpires: process.env.REFRESH_TOKEN_EXPIRES,
+    refreshTokenExpires: process.env.REFRESH_TOKEN_EXPIRES || '90d',
   },
   cloudinary: {
     name: process.env.CLOUDINARY_CLOUD_NAME,
