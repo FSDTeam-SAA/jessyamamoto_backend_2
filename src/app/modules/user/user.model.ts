@@ -74,6 +74,11 @@ const userSchema = new mongoose.Schema<IUser>(
       enum: ['active', 'inactive'],
       default: 'active',
     },
+    userStatus: {
+      type: String,
+      enum: ['approved', 'reject', 'panding'],
+      default: 'panding',
+    },
     gender: {
       type: String,
       enum: ['male', 'female', 'other'],
@@ -81,6 +86,10 @@ const userSchema = new mongoose.Schema<IUser>(
     experienceLevel: {
       type: String,
       enum: ['beginner', 'intermediate', 'expert'],
+    },
+    NIDNumber: {
+      type: String,
+      unique: true,
     },
     totalBooking: [{ type: mongoose.Schema.ObjectId, ref: 'Booking' }],
     completeBooking: [{ type: mongoose.Schema.ObjectId, ref: 'Booking' }],

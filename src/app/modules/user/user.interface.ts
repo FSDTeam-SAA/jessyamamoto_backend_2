@@ -26,10 +26,12 @@ export interface IUser {
   typeOfCare?: string[];
   needToHelpWith?: string[];
   caregiverQualities?: string[];
+  NIDNumber: string;
   // job
   status?: 'active' | 'inactive';
   gender?: 'male' | 'female' | 'other';
   experienceLevel?: 'beginner' | 'intermediate' | 'expert';
+  userStatus?: 'approved' | 'reject' | 'panding';
   category?: Types.ObjectId[];
   service?: Types.ObjectId[];
   totalBooking?: Types.ObjectId[];
