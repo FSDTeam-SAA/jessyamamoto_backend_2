@@ -27,6 +27,8 @@ export interface IUser {
   needToHelpWith?: string[];
   caregiverQualities?: string[];
   NIDNumber: string;
+  countery: string;
+  city: string;
   // job
   status?: 'active' | 'inactive';
   gender?: 'male' | 'female' | 'other';

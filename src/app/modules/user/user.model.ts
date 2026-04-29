@@ -91,6 +91,8 @@ const userSchema = new mongoose.Schema<IUser>(
       type: String,
       unique: true,
     },
+    countery: { type: String },
+    city: { type: String },
     totalBooking: [{ type: mongoose.Schema.ObjectId, ref: 'Booking' }],
     completeBooking: [{ type: mongoose.Schema.ObjectId, ref: 'Booking' }],
     cencleBooking: [{ type: mongoose.Schema.ObjectId, ref: 'Booking' }],
