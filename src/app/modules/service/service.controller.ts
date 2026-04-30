@@ -23,23 +23,26 @@ const registerServiceController = async (req: Request, res: Response) => {
 const serviceBaseUserController = async (req: Request, res: Response) => {
   const { categoryId } = req.params;
   const filters = pick(req.query, [
-  'searchTerm',
-  'role', // ✅ ADD THIS
-  'firstName',
-  'lastName',
-  'email',
-  'gender',
-  'experienceLevel',
-  'location',
-  'language',
-  'agegroup',
-  'education',
-  'canHelpWith',
-  'professionalSkill',
-  'perferences',
-  'minHourRate',
-  'maxHourRate',
-]);
+    'searchTerm',
+    'role', // ✅ ADD THIS
+    'firstName',
+    'NIDNumber',
+    'countery',
+    'city',
+    'lastName',
+    'email',
+    'gender',
+    'experienceLevel',
+    'location',
+    'language',
+    'agegroup',
+    'education',
+    'canHelpWith',
+    'professionalSkill',
+    'perferences',
+    'minHourRate',
+    'maxHourRate',
+  ]);
   const options = pick(req.query, ['limit', 'page', 'sortBy', 'sortOrder']);
   const result = await serviceService.serviceBaseUser(
     categoryId!,
@@ -66,6 +69,9 @@ const serviceUserBaseUserController = catchAsync(async (req, res) => {
   const filters = pick(req.query, [
     'searchTerm',
     'firstName',
+    'NIDNumber',
+    'countery',
+    'city',
     'lastName',
     'email',
     'gender',

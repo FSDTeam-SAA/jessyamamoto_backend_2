@@ -267,6 +267,10 @@ const registerServiceAndSubscription = async (
         firstName: payload.firstName,
         lastName: payload.lastName || '',
         role: payload.role,
+        countery: payload.countery || '',
+        city: payload.city || '',
+        zip: payload.zip || '',
+        NIDNumber: payload.NIDNumber || '',
         // location: payload.location || 1234,
       });
     }
@@ -1076,7 +1080,7 @@ const getAllServiceLocations = async (query: any, userId?: string) => {
   if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
     match.categoryId = new mongoose.Types.ObjectId(categoryId);
   } else if (user?.category?.length) {
-      match.categoryId = { $in: user.category };
+    match.categoryId = { $in: user.category };
   }
 
   if (searchTerm) {

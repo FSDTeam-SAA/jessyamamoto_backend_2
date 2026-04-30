@@ -38,6 +38,15 @@ const loginUser = async (payload: Partial<IUser>) => {
     }
   }
 
+  if (user.role !== userRole.admin) {
+    if (user.userStatus !== 'approved') {
+      throw new AppError(
+        403,
+        `Your account is not approved by admin. Stile ${user.userStatus}`,
+      );
+    }
+  }
+
   const isPasswordMatched = await bcrypt.compare(
     payload.password,
     user.password,
