@@ -273,6 +273,33 @@ import config from '../../config';
 
 const stripe = new Stripe(config.stripe.secretKey!);
 
+const withBookingProgress = <T extends { status?: string }>(booking: T) => {
+  const status = String(booking.status || 'pending').toLowerCase();
+  const totalSteps = 3;
+
+  const progressMap: Record<
+    string,
+    { step: number; label: string; isTerminal: boolean }
+  > = {
+    pending: { step: 1, label: 'Request pending', isTerminal: false },
+    accepted: { step: 2, label: 'Accepted by caregiver', isTerminal: false },
+    completed: { step: 3, label: 'Booking completed', isTerminal: true },
+    cancelled: { step: 0, label: 'Booking cancelled', isTerminal: true },
+  };
+
+  const progress =
+    progressMap[status] || progressMap.pending || { step: 1, label: '', isTerminal: false };
+
+  return {
+    ...booking,
+    bookingProgress: {
+      ...progress,
+      totalSteps,
+      status,
+    },
+  };
+};
+
 // ===================== Helper: Validate Date Format =====================
 const isValidDate = (dateString: string): boolean => {
   const date = new Date(dateString);
@@ -747,7 +774,7 @@ const updateBooking = async (id: string, payload: any, userId?: string) => {
   })
     .populate({
       path: 'userId',
-      select: 'firstName lastName email phone profileImage',
+      select: 'firstName lastName email phone profileImage role professionalSkill',
     })
     .populate({
       path: 'serviceId',
@@ -835,9 +862,12 @@ const getAllBooking = async (params: any, options: IOption) => {
     .sort({ [sortBy]: sortOrder } as any);
 
   const total = await Booking.countDocuments(whereCondition);
+  const enhancedData = result.map((booking) =>
+    withBookingProgress(booking.toObject()),
+  );
 
   return {
-    data: result,
+    data: enhancedData,
     meta: {
       total,
       page,
@@ -901,7 +931,7 @@ const getAllMyBooking = async (
       select: 'firstName lastName email location hourRate gender days',
       populate: {
         path: 'userId',
-        select: 'firstName lastName email phone profileImage',
+        select: 'firstName lastName email phone profileImage role professionalSkill',
       },
     })
     .populate({
@@ -913,9 +943,12 @@ const getAllMyBooking = async (
     .sort({ [sortBy]: sortOrder } as any);
 
   const total = await Booking.countDocuments(whereCondition);
+  const enhancedData = result.map((booking) =>
+    withBookingProgress(booking.toObject()),
+  );
 
   return {
-    data: result,
+    data: enhancedData,
     meta: {
       total,
       page,
@@ -1002,9 +1035,12 @@ const getMyServiceBookings = async (
     .sort({ [sortBy]: sortOrder } as any);
 
   const total = await Booking.countDocuments(whereCondition);
+  const enhancedData = result.map((booking) =>
+    withBookingProgress(booking.toObject()),
+  );
 
   return {
-    data: result,
+    data: enhancedData,
     meta: {
       total,
       page,
@@ -1055,7 +1091,7 @@ const getSingleBooking = async (id: string, userId?: string, role?: string) => {
     }
   }
 
-  return booking;
+  return withBookingProgress(booking.toObject());
 };
 
 // // ===================== Update Booking =====================

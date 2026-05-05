@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.post(
   '/',
-  auth(userRole['find care'], userRole['find job']),
+  auth(userRole['find care']),
   reviewController.createReview,
 );
 
