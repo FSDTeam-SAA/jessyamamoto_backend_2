@@ -53,11 +53,13 @@ const getUserById = catchAsync(async (req, res) => {
 });
 
 const updateUserById = catchAsync(async (req, res) => {
-  const file = req.file;
-  const fromData = req.body.data ? JSON.parse(req.body.data) : req.body;
+   const file = req.files as Express.Multer.File[];
+  // ✅ multipart/form-data হলে data parse, না হলে সরাসরি body
+  const formData = req.body.data ? JSON.parse(req.body.data) : req.body;
+
   const result = await userService.updateUserById(
     req.params.id!,
-    fromData,
+    formData,
     file,
   );
   sendResponse(res, {
@@ -93,18 +95,19 @@ const profile = catchAsync(async (req, res) => {
 });
 
 const updateMyProfile = catchAsync(async (req, res) => {
-  const file = req.file;
-  // console.log(file)
-  const fromData = req.body.data ? JSON.parse(req.body.data) : req.body;
+  const file = req.files as Express.Multer.File[];
+  // ✅ multipart/form-data হলে data parse, না হলে সরাসরি body
+  const formData = req.body.data ? JSON.parse(req.body.data) : req.body;
+
   const result = await userService.updateMyProfile(
     req.user?.id,
-    fromData,
+    formData,
     file,
   );
   sendResponse(res, {
     statusCode: 200,
     success: true,
-    message: 'User updated successfully',
+    message: 'Profile updated successfully',
     data: result,
   });
 });
