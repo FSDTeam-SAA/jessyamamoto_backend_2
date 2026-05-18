@@ -11,9 +11,8 @@ import config from '../../config';
 import { getLocationFromZip } from '../../helper/geocode';
 
 /**
- * Category ids for home "My Services": completed subscription payments for this user.
- * Resolves category from payment.category (preferred), linked payment.service → Service.categoryId,
- * or pendingServiceRegistration.categoryId (edge cases).
+ * Category ids for home "My Services": categories the user registered (user.category),
+ * with fallback to distinct Service.categoryId for that user.
  */
 export const getMyServicesPaidCategoryIds = async (
   userId: string,
@@ -22,32 +21,6 @@ export const getMyServicesPaidCategoryIds = async (
     return [];
   }
   const uid = new mongoose.Types.ObjectId(userId);
-
-  const payments = await Payment.find({
-    user: uid,
-    status: 'completed',
-    paymentType: 'subscription',
-  })
-    .select('category service pendingServiceRegistration createdAt')
-    .sort({ createdAt: 1 })
-    .lean();
-
-  const serviceOidList = payments
-    .map((p) => p.service)
-    .filter((s): s is mongoose.Types.ObjectId => s != null);
-
-  const serviceCategoryByServiceId = new Map<string, string>();
-  if (serviceOidList.length > 0) {
-    const svcDocs = await Service.find({
-      _id: { $in: serviceOidList },
-    })
-      .select('_id categoryId')
-      .lean();
-    for (const s of svcDocs) {
-      const cid = s.categoryId?.toString();
-      if (cid) serviceCategoryByServiceId.set(s._id.toString(), cid);
-    }
-  }
 
   const ordered: string[] = [];
   const seen = new Set<string>();
@@ -59,21 +32,21 @@ export const getMyServicesPaidCategoryIds = async (
     ordered.push(id);
   };
 
-  for (const p of payments) {
-    if (p.category) {
-      pushCat(p.category.toString());
-      continue;
+  const user = await User.findById(uid).select('category').lean();
+  if (user?.category?.length) {
+    for (const c of user.category) {
+      pushCat(c?.toString());
     }
-    if (p.service) {
-      pushCat(serviceCategoryByServiceId.get(p.service.toString()));
-      continue;
-    }
-    const pending = p.pendingServiceRegistration as
-      | { categoryId?: string }
-      | undefined;
-    if (pending?.categoryId) {
-      pushCat(pending.categoryId);
-    }
+    return ordered;
+  }
+
+  const services = await Service.find({ userId: uid })
+    .select('categoryId createdAt')
+    .sort({ createdAt: 1 })
+    .lean();
+
+  for (const s of services) {
+    pushCat(s.categoryId?.toString());
   }
 
   return ordered;

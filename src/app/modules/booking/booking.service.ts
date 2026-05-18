@@ -438,17 +438,6 @@ const createBooking = async (payload: {
   const user = await User.findById(payload.userId);
   if (!user) throw new AppError(404, 'User not found');
 
-  // ✅ subscription validity check (boolean + expiry)
-  const now = new Date();
-  const hasActiveSubscription =
-    user.isSubscription &&
-    user.subscriptionExpiry &&
-    user.subscriptionExpiry > now;
-
-  if (!hasActiveSubscription) {
-    throw new AppError(403, 'You need an active subscription to book');
-  }
-
   if (user.role !== 'find care') {
     throw new AppError(403, 'Only find care users can create bookings');
   }

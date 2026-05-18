@@ -268,11 +268,82 @@ const registerServiceAndSubscription = async (
       ? String(payload.subscriptionId).trim()
       : '';
 
+  /** Account + service without paid subscription (no Stripe). */
   if (!effectiveSubscriptionId) {
-    throw new AppError(
-      400,
-      'Select a membership plan and pay to activate this category (one payment per service category).',
-    );
+    const gender =
+      (payload.gender && String(payload.gender).trim()) ||
+      ((user as { gender?: string }).gender &&
+        String((user as { gender?: string }).gender).trim()) ||
+      '';
+    if (!gender) {
+      throw new AppError(400, 'gender is required');
+    }
+
+    const categoryDoc = await Category.findById(categoryObjectId);
+    if (!categoryDoc) throw new AppError(404, 'Category not found');
+
+    const loc = payload.location || payload.city || '';
+
+    const dbSession = await mongoose.startSession();
+    dbSession.startTransaction();
+    let createdService: InstanceType<typeof Service> | null = null;
+    try {
+      const [created] = await Service.create(
+        [
+          {
+            userId: user._id,
+            categoryId: categoryObjectId,
+            location: loc,
+            zip: payload.zip ? String(payload.zip) : undefined,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            gender,
+            hourRate:
+              user.role === 'find job' && payload.hourRate != null
+                ? Number(payload.hourRate)
+                : undefined,
+            days: payload.days,
+            typeOfInterest: payload.typeOfInterest,
+            helpOfInterest: payload.helpOfInterest,
+          },
+        ],
+        { session: dbSession },
+      );
+      createdService = created!;
+
+      await User.findByIdAndUpdate(
+        user._id,
+        {
+          $addToSet: {
+            category: categoryObjectId,
+            service: created!._id,
+          },
+          ...(loc ? { location: loc } : {}),
+        },
+        { session: dbSession },
+      );
+
+      await Category.findByIdAndUpdate(
+        categoryObjectId,
+        user.role === 'find care'
+          ? { $addToSet: { findCareUser: user._id } }
+          : { $addToSet: { findJobUser: user._id } },
+        { session: dbSession },
+      );
+
+      await dbSession.commitTransaction();
+    } catch (e) {
+      await dbSession.abortTransaction();
+      throw e;
+    } finally {
+      dbSession.endSession();
+    }
+
+    return {
+      service: createdService,
+      checkoutUrl: null,
+    };
   }
 
   const subscriptionDoc = await Subscription.findById(effectiveSubscriptionId);
