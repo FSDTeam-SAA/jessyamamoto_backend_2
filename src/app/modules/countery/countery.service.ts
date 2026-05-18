@@ -1,17 +1,15 @@
-import AppError from "../../error/appError";
-import pagination, { IOption } from "../../helper/pagenation";
-import { ICountry } from "./countery.interface";
-import Country from "./countery.model";
-
+import AppError from '../../error/appError';
+import pagination, { IOption } from '../../helper/pagenation';
+import { ICountry } from './countery.interface';
+import Country from './countery.model';
 
 const createCountry = async (payload: ICountry) => {
   const isExist = await Country.findOne({
     countryName: payload.countryName,
-    cityName: payload.cityName,
   });
 
   if (isExist) {
-    throw new AppError(400, "Country already exists");
+    throw new AppError(400, 'Country already exists');
   }
 
   return await Country.create(payload);
@@ -23,12 +21,12 @@ const getAllCountries = async (params: any, options: IOption) => {
 
   const andCondition: any[] = [];
 
-  const searchableFields = ["countryName", "cityName"];
+  const searchableFields = ['countryName', 'cityName'];
 
   if (searchTerm) {
     andCondition.push({
       $or: searchableFields.map((field) => ({
-        [field]: { $regex: searchTerm, $options: "i" },
+        [field]: { $regex: searchTerm, $options: 'i' },
       })),
     });
   }
@@ -41,8 +39,7 @@ const getAllCountries = async (params: any, options: IOption) => {
     });
   }
 
-  const whereCondition =
-    andCondition.length > 0 ? { $and: andCondition } : {};
+  const whereCondition = andCondition.length > 0 ? { $and: andCondition } : {};
 
   const result = await Country.find(whereCondition)
     .skip(skip)
@@ -59,7 +56,7 @@ const getAllCountries = async (params: any, options: IOption) => {
 
 const getCountry = async (id: string) => {
   const data = await Country.findById(id);
-  if (!data) throw new AppError(404, "Country not found");
+  if (!data) throw new AppError(404, 'Country not found');
   return data;
 };
 
@@ -69,14 +66,14 @@ const updateCountry = async (id: string, payload: Partial<ICountry>) => {
     runValidators: true,
   });
 
-  if (!updated) throw new AppError(404, "Country not found");
+  if (!updated) throw new AppError(404, 'Country not found');
   return updated;
 };
 
 const deleteCountry = async (id: string) => {
   const deleted = await Country.findByIdAndDelete(id);
 
-  if (!deleted) throw new AppError(404, "Country not found");
+  if (!deleted) throw new AppError(404, 'Country not found');
   return deleted;
 };
 
