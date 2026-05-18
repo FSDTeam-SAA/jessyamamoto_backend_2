@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 
 export interface IPendingServiceRegistration {
   categoryId: string;
+  location?: string;
   zip?: string;
   gender: string;
   days?: string[];

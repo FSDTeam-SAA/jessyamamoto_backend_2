@@ -12,6 +12,7 @@ import { bookmarkRoutes } from '../modules/bookmark/bookmark.routes';
 import { paymentRouter } from '../modules/payment/payment.routes';
 import { helpRoutes } from '../modules/help/help.routes';
 import { dashboardRoutes } from '../modules/dashboard/dashboard.routes';
+import { countryRoutes } from '../modules/countery/countery.routes';
 
 const router = Router();
 
@@ -68,6 +69,10 @@ const moduleRoutes = [
     path: '/dashboard',
     route: dashboardRoutes,
   },
+  {
+    path: '/country',
+    route: countryRoutes,
+  }
 ];
 
 moduleRoutes.forEach((route) => router.use(route.path, route.route));
