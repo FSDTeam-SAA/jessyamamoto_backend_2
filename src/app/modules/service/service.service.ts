@@ -204,10 +204,6 @@ import Stripe from 'stripe';
 import config from '../../config';
 import mongoose from 'mongoose';
 import pagination, { IOption } from '../../helper/pagenation';
-import {
-  getLocationFromZip,
-  normalizeUsZip,
-} from '../../helper/geocode';
 
 const stripe = new Stripe(config.stripe.secretKey!);
 
@@ -217,7 +213,6 @@ const registerServiceAndSubscription = async (
 ) => {
   /* ================= GET OR CREATE USER ================= */
   let user = null;
-  let geoData = null;
 
   if (userId) {
     user = await User.findById(userId);
@@ -231,47 +226,18 @@ const registerServiceAndSubscription = async (
       );
     }
 
-    /* ================= GEO FROM ZIP / LOCATION ================= */
-    if (payload.zip != null && String(payload.zip).trim() !== '') {
-      const raw = String(payload.zip).trim();
-      const normalized = normalizeUsZip(raw);
-      if (normalized) {
-        payload.zip = normalized;
-        geoData = await getLocationFromZip(normalized);
-        if (!geoData) {
-          console.warn(
-            '[registerService] Geocode miss for zip %s — continuing checkout without lat/lng',
-            normalized,
-          );
-        }
-      } else if (payload.role === 'find job') {
-        throw new AppError(
-          400,
-          'Enter a valid US ZIP code (5 digits, e.g. 94102)',
-        );
-      } else {
-        geoData = await getLocationFromZip(raw);
-        if (!geoData) {
-          console.warn(
-            `[registerService] Geocode miss for location "${raw}" — continuing checkout without lat/lng`,
-          );
-        }
-      }
-    }
-
     user = await User.findOne({ email: payload.email });
     if (!user) {
       user = await User.create({
         email: payload.email,
-        password: payload.password || 'defaultpassword', // optional default
+        password: payload.password || 'defaultpassword',
         firstName: payload.firstName,
         lastName: payload.lastName || '',
         role: payload.role,
-        countery: payload.countery || '',
+        countery: payload.countery || payload.country || '',
         city: payload.city || '',
-        zip: payload.zip || '',
+        location: payload.location || '',
         NIDNumber: payload.NIDNumber || '',
-        // location: payload.location || 1234,
       });
     }
   }
@@ -350,7 +316,7 @@ const registerServiceAndSubscription = async (
     userType: user.role === 'find job' ? 'findJob' : 'findCare',
     pendingServiceRegistration: {
       categoryId: payload.categoryId,
-      zip: payload.zip != null ? String(payload.zip) : undefined,
+      location: payload.location || payload.city || '',
       gender: payload.gender,
       days: payload.days,
       hourRate:
@@ -376,11 +342,6 @@ const completePendingServiceRegistration = async (stripeSessionId: string) => {
   if (!regUser) {
     console.warn('⚠️ Pending service: user not found', payment.user);
     return;
-  }
-
-  let geoData = null;
-  if (pending.zip) {
-    geoData = await getLocationFromZip(pending.zip.toString());
   }
 
   const dbSession = await mongoose.startSession();
@@ -417,10 +378,7 @@ const completePendingServiceRegistration = async (stripeSessionId: string) => {
         {
           userId: regUser._id,
           categoryId: pending.categoryId,
-          zip: pending.zip,
-          location: geoData?.location,
-          lat: geoData?.lat,
-          lng: geoData?.lng,
+          location: pending.location || '',
           email: regUser.email,
           firstName: regUser.firstName,
           lastName: regUser.lastName,
@@ -442,12 +400,7 @@ const completePendingServiceRegistration = async (stripeSessionId: string) => {
           category: pending.categoryId,
           service: created!._id,
         },
-        ...(geoData && {
-          location: geoData.location,
-          lat: geoData.lat,
-          lng: geoData.lng,
-        }),
-        ...(pending.zip && { zip: pending.zip }),
+        ...(pending.location && { location: pending.location }),
       },
       { session: dbSession },
     );
