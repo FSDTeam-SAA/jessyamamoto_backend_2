@@ -77,10 +77,47 @@ const deleteCountry = async (id: string) => {
   return deleted;
 };
 
+const addCityToCountry = async (id: string, cityName: string) => {
+  const country = await Country.findById(id);
+  if (!country) throw new AppError(404, 'Country not found');
+
+  if (country.cityName.includes(cityName)) {
+    throw new AppError(400, 'City already exists in this country');
+  }
+
+  const updated = await Country.findByIdAndUpdate(
+    id,
+    { $push: { cityName: cityName } },
+    { new: true, runValidators: true },
+  );
+
+  return updated;
+};
+
+// একটি city মুছে ফেলা
+const removeCityFromCountry = async (id: string, cityName: string) => {
+  const country = await Country.findById(id);
+  if (!country) throw new AppError(404, 'Country not found');
+
+  if (!country.cityName.includes(cityName)) {
+    throw new AppError(404, 'City not found in this country');
+  }
+
+  const updated = await Country.findByIdAndUpdate(
+    id,
+    { $pull: { cityName: cityName } },
+    { new: true },
+  );
+
+  return updated;
+};
+
 export const countryService = {
   createCountry,
   getAllCountries,
   getCountry,
   updateCountry,
   deleteCountry,
+  addCityToCountry,
+  removeCityFromCountry,
 };

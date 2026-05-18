@@ -13,6 +13,7 @@ import { paymentRouter } from '../modules/payment/payment.routes';
 import { helpRoutes } from '../modules/help/help.routes';
 import { dashboardRoutes } from '../modules/dashboard/dashboard.routes';
 import { countryRoutes } from '../modules/countery/countery.routes';
+import { languageRoutes } from '../modules/language/language.routes';
 
 const router = Router();
 
@@ -73,6 +74,10 @@ const moduleRoutes = [
     path: '/country',
     route: countryRoutes,
   },
+  {
+    path: '/language',
+    route: languageRoutes
+  }
 ];
 
 moduleRoutes.forEach((route) => router.use(route.path, route.route));
