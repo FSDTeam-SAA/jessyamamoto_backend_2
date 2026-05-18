@@ -63,10 +63,38 @@ const deleteCountry = catchAsync(async (req, res) => {
   });
 });
 
+
+const addCity = catchAsync(async (req, res) => {
+  const { cityName } = req.body;
+  const result = await countryService.addCityToCountry(req.params.id!, cityName);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'City added successfully',
+    data: result,
+  });
+});
+
+const removeCity = catchAsync(async (req, res) => {
+  const { cityName } = req.body;
+  const result = await countryService.removeCityFromCountry(req.params.id!, cityName);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'City removed successfully',
+    data: result,
+  });
+});
+
+
 export const countryController = {
   createCountry,
   getAllCountry,
   getCountryById,
   updateCountry,
   deleteCountry,
+  addCity,
+  removeCity,
 };
