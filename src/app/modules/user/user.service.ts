@@ -58,7 +58,7 @@ const createUser = async (payload: IUser) => {
     throw new AppError(400, 'User already exists');
   }
   const idx = Math.floor(Math.random() * 100);
-  payload.profileImage = `https://avatar.iran.liara.run/public/${idx}.png`;
+  payload.profileImage = [`https://avatar.iran.liara.run/public/${idx}.png`];
   const result = await User.create(payload);
 
   if (!result) {
@@ -153,19 +153,20 @@ const getUserById = async (id: string) => {
 const updateUserById = async (
   id: string,
   payload: IUser,
-  file?: Express.Multer.File,
+  file?: Express.Multer.File[],
 ) => {
   const user = await User.findById(id);
   if (!user) {
     throw new AppError(404, 'User not found');
   }
-  if (file) {
-    const uploadProfile = await fileUploader.uploadToCloudinary(file);
-    if (!(uploadProfile as any)?.secure_url) {
-      throw new AppError(400, 'Failed to upload profile image');
-    }
-    payload.profileImage = (uploadProfile as any).secure_url;
+
+  if (file?.length) {
+    const uploadedFiles = await Promise.all(
+      file.map((f) => fileUploader.uploadToCloudinary(f)),
+    );
+    payload.profileImage = uploadedFiles.map((f) => f.url);
   }
+
   const result = await User.findByIdAndUpdate(id, payload, { new: true });
   if (!result) {
     throw new AppError(404, 'User not found');
@@ -197,28 +198,23 @@ const profile = async (id: string) => {
 const updateMyProfile = async (
   id: string,
   payload: Partial<IUser>,
-  file?: Express.Multer.File,
+  file?: Express.Multer.File[],
 ) => {
   const user = await User.findById(id);
   if (!user) {
     throw new AppError(404, 'User not found');
   }
 
-  // profile image upload
-  if (file) {
-    const uploadProfile = await fileUploader.uploadToCloudinary(file);
-
-    if (!(uploadProfile as any)?.secure_url) {
-      throw new AppError(400, 'Failed to upload profile image');
-    }
-
-    payload.profileImage = (uploadProfile as any).secure_url;
+  if (file?.length) {
+    const uploadedFiles = await Promise.all(
+      file.map((f) => fileUploader.uploadToCloudinary(f)),
+    );
+    payload.profileImage = uploadedFiles.map((f) => f.url);
   }
 
   // ZIP changed → update location
   if (payload.zip && payload.zip !== user.zip) {
     const locationData = await getLocationFromZip(payload.zip);
-
     if (locationData) {
       payload.location = locationData.location;
       payload.lat = locationData.lat;
@@ -226,7 +222,6 @@ const updateMyProfile = async (
     }
   }
 
-  // update user
   const result = await User.findByIdAndUpdate(id, payload, {
     new: true,
     runValidators: true,
@@ -276,7 +271,9 @@ const createStripeAccount = async (userId: string) => {
   if (user.stripeAccountId) {
     const existing = await stripe.accounts.retrieve(user.stripeAccountId);
     if (!existing.details_submitted) {
-      const accountLink = await createAccountOnboardingLink(user.stripeAccountId);
+      const accountLink = await createAccountOnboardingLink(
+        user.stripeAccountId,
+      );
       return {
         url: accountLink.url,
         message: 'Continue Stripe onboarding',
@@ -355,7 +352,9 @@ const getStripeAccount = async (userId: string) => {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     if (/onboarding|not completed/i.test(msg)) {
-      const accountLink = await createAccountOnboardingLink(user.stripeAccountId);
+      const accountLink = await createAccountOnboardingLink(
+        user.stripeAccountId,
+      );
       return {
         url: accountLink.url,
         message: 'Complete Stripe onboarding to open the dashboard',

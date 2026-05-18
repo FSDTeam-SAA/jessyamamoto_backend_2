@@ -31,7 +31,7 @@ router.get(
 router.put(
   '/profile',
   auth(userRole.admin, userRole['find care'], userRole['find job']),
-  fileUploader.upload.single('profileImage'),
+  fileUploader.upload.array('profileImage'),
   userController.updateMyProfile,
 );
 router.get('/all-user', auth(userRole.admin), userController.getAllUser);
@@ -39,7 +39,7 @@ router.get('/all-user', auth(userRole.admin), userController.getAllUser);
 router.put(
   '/:id',
   auth(userRole.admin),
-  fileUploader.upload.single('profileImage'),
+  fileUploader.upload.array('profileImage'),
   userController.updateUserById,
 );
 router.get('/:id', userController.getUserById);

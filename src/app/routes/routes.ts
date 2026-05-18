@@ -14,6 +14,7 @@ import { helpRoutes } from '../modules/help/help.routes';
 import { dashboardRoutes } from '../modules/dashboard/dashboard.routes';
 import { countryRoutes } from '../modules/countery/countery.routes';
 import { languageRoutes } from '../modules/language/language.routes';
+import { educationRoutes } from '../modules/education/education.routes';
 
 const router = Router();
 
@@ -76,8 +77,12 @@ const moduleRoutes = [
   },
   {
     path: '/language',
-    route: languageRoutes
-  }
+    route: languageRoutes,
+  },
+  {
+    path: '/education',
+    route: educationRoutes,
+  },
 ];
 
 moduleRoutes.forEach((route) => router.use(route.path, route.route));
