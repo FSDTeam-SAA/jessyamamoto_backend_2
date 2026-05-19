@@ -50,4 +50,5 @@ export interface IUser {
   professionalSkill?: string[];
   perferences?: string[];
   galary?: string[];
+  certifications?: string[];
 }
