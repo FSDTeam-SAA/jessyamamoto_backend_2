@@ -31,15 +31,20 @@ router.get(
 router.put(
   '/profile',
   auth(userRole.admin, userRole['find care'], userRole['find job']),
-  fileUploader.upload.array('profileImage'),
+  fileUploader.upload.single('profileImage'),
   userController.updateMyProfile,
 );
 router.get('/all-user', auth(userRole.admin), userController.getAllUser);
-
+router.patch(
+  '/update-galary',
+  auth(userRole.admin, userRole['find care'], userRole['find job']),
+  fileUploader.upload.array('galary'),
+  userController.uploadGalaryImages,
+);
 router.put(
   '/:id',
   auth(userRole.admin),
-  fileUploader.upload.array('profileImage'),
+  fileUploader.upload.single('profileImage'),
   userController.updateUserById,
 );
 router.get('/:id', userController.getUserById);
