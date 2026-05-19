@@ -35,7 +35,12 @@ router.put(
   userController.updateMyProfile,
 );
 router.get('/all-user', auth(userRole.admin), userController.getAllUser);
-
+router.patch(
+  '/update-galary',
+  auth(userRole.admin, userRole['find care'], userRole['find job']),
+  fileUploader.upload.array('galary'),
+  userController.uploadGalaryImages,
+);
 router.put(
   '/:id',
   auth(userRole.admin),

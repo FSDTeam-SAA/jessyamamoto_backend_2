@@ -106,6 +106,7 @@ const userSchema = new mongoose.Schema<IUser>(
     canHelpWith: [{ type: String }],
     professionalSkill: [{ type: String }],
     perferences: [{ type: String }],
+    galary: [{ type: String }],
   },
   {
     timestamps: true,

@@ -364,6 +364,31 @@ const getStripeAccount = async (userId: string) => {
   }
 };
 
+const uploadGalaryImages = async (
+  userId: string,
+  payload: IUser,
+  files: Express.Multer.File[],
+) => {
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new AppError(404, 'User not found');
+  }
+  if (files?.length) {
+    const uploadedFiles = await Promise.all(
+      files.map((file) => fileUploader.uploadToCloudinary(file)),
+    );
+
+    payload.galary = uploadedFiles.map((file) => file.url);
+  }
+
+  const result = await User.findByIdAndUpdate(userId, payload, {
+    new: true,
+  });
+
+  return result;
+};
+
 export const userService = {
   createUser,
   getAllUser,
@@ -375,4 +400,5 @@ export const userService = {
   createStripeAccount,
   getStripeAccount,
   getMyServicesPaidCategoryIds,
+  uploadGalaryImages,
 };

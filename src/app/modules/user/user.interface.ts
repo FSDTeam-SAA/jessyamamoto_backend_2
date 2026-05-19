@@ -49,4 +49,5 @@ export interface IUser {
   canHelpWith?: string[];
   professionalSkill?: string[];
   perferences?: string[];
+  galary?: string[];
 }

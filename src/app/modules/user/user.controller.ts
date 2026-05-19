@@ -53,7 +53,7 @@ const getUserById = catchAsync(async (req, res) => {
 });
 
 const updateUserById = catchAsync(async (req, res) => {
-   const file = req.files as Express.Multer.File[];
+  const file = req.files as Express.Multer.File[];
   // ✅ multipart/form-data হলে data parse, না হলে সরাসরি body
   const formData = req.body.data ? JSON.parse(req.body.data) : req.body;
 
@@ -133,6 +133,21 @@ const getStripeAccount = catchAsync(async (req, res) => {
   });
 });
 
+const uploadGalaryImages = catchAsync(async (req, res) => {
+  const files = req.files as Express.Multer.File[];
+  const result = await userService.uploadGalaryImages(
+    req.user?.id,
+    req.body,
+    files,
+  );
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Gallery updated successfully',
+    data: result,
+  });
+});
+
 export const userController = {
   createUser,
   getAllUser,
@@ -143,4 +158,5 @@ export const userController = {
   updateMyProfile,
   createStripeAccount,
   getStripeAccount,
+  uploadGalaryImages,
 };
