@@ -147,6 +147,21 @@ const uploadGalaryImages = catchAsync(async (req, res) => {
   });
 });
 
+const certificationsUpload = catchAsync(async (req, res) => {
+  const files = req.files as Express.Multer.File[];
+  const result = await userService.certificationsUpload(
+    req.user?.id,
+    req.body,
+    files,
+  );
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Gallery updated successfully',
+    data: result,
+  });
+});
+
 export const userController = {
   createUser,
   getAllUser,
@@ -158,4 +173,5 @@ export const userController = {
   createStripeAccount,
   getStripeAccount,
   uploadGalaryImages,
+  certificationsUpload,
 };

@@ -99,6 +99,7 @@ const userSchema = new mongoose.Schema<IUser>(
     stripeAccountId: { type: String },
     reviewRatting: [{ type: mongoose.Schema.ObjectId, ref: 'Review' }],
     givenReviewRatting: [{ type: mongoose.Schema.ObjectId, ref: 'Review' }],
+    certifications: [{ type: String }],
     exprience: Number,
     language: [{ type: String }],
     agegroup: [{ type: String }],

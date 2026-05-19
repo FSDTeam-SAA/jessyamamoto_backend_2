@@ -41,12 +41,21 @@ router.patch(
   fileUploader.upload.array('galary'),
   userController.uploadGalaryImages,
 );
+
+router.patch(
+  '/update-certifications',
+  auth(userRole.admin, userRole['find care'], userRole['find job']),
+  fileUploader.upload.array('certifications'),
+  userController.certificationsUpload,
+);
+
 router.put(
   '/:id',
   auth(userRole.admin),
   fileUploader.upload.single('profileImage'),
   userController.updateUserById,
 );
+
 router.get('/:id', userController.getUserById);
 router.delete('/:id', auth(userRole.admin), userController.deleteUserById);
 
