@@ -31,7 +31,7 @@ const userSchema = new mongoose.Schema<IUser>(
       enum: ['find job', 'find care', 'admin'],
       required: true,
     },
-    profileImage: [String],
+    profileImage: String,
     bio: String,
     phone: String,
     otp: String,

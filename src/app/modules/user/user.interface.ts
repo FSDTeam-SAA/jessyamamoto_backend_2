@@ -6,7 +6,7 @@ export interface IUser {
   email: string;
   password: string;
   role: 'find job' | 'find care' | 'admin';
-  profileImage?: string[];
+  profileImage?: string;
   bio?: string;
   phone?: string;
   location?: string;
