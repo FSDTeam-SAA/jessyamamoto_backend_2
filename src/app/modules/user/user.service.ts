@@ -153,18 +153,16 @@ const getUserById = async (id: string) => {
 const updateUserById = async (
   id: string,
   payload: IUser,
-  file?: Express.Multer.File[],
+  file?: Express.Multer.File,
 ) => {
   const user = await User.findById(id);
   if (!user) {
     throw new AppError(404, 'User not found');
   }
 
-  if (file?.length) {
-    const uploadedFiles = await Promise.all(
-      file.map((f) => fileUploader.uploadToCloudinary(f)),
-    );
-    payload.profileImage = uploadedFiles.map((f) => f.url);
+  if (file) {
+    const uploaded = await fileUploader.uploadToCloudinary(file);
+    payload.profileImage = [uploaded.url];
   }
 
   const result = await User.findByIdAndUpdate(id, payload, { new: true });
@@ -198,18 +196,31 @@ const profile = async (id: string) => {
 const updateMyProfile = async (
   id: string,
   payload: Partial<IUser>,
-  file?: Express.Multer.File[],
+  file?: Express.Multer.File,
+  certificationFiles?: Express.Multer.File[],
 ) => {
   const user = await User.findById(id);
   if (!user) {
     throw new AppError(404, 'User not found');
   }
 
-  if (file?.length) {
-    const uploadedFiles = await Promise.all(
-      file.map((f) => fileUploader.uploadToCloudinary(f)),
-    );
-    payload.profileImage = uploadedFiles.map((f) => f.url);
+  if (file) {
+    const uploaded = await fileUploader.uploadToCloudinary(file);
+    payload.profileImage = [uploaded.url];
+  }
+
+  if (certificationFiles && certificationFiles.length > 0) {
+    const uploadedUrls: string[] = [];
+    for (const certFile of certificationFiles) {
+      const uploaded = await fileUploader.uploadToCloudinary(certFile);
+      uploadedUrls.push(uploaded.url);
+    }
+    const baseCerts = Array.isArray(payload.certifications)
+      ? [...payload.certifications]
+      : Array.isArray(user.certifications)
+        ? [...user.certifications]
+        : [];
+    payload.certifications = [...baseCerts, ...uploadedUrls];
   }
 
   // ZIP changed → update location

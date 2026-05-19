@@ -53,7 +53,7 @@ const getUserById = catchAsync(async (req, res) => {
 });
 
 const updateUserById = catchAsync(async (req, res) => {
-   const file = req.files as Express.Multer.File[];
+  const file = req.file as Express.Multer.File | undefined;
   // ✅ multipart/form-data হলে data parse, না হলে সরাসরি body
   const formData = req.body.data ? JSON.parse(req.body.data) : req.body;
 
@@ -95,7 +95,12 @@ const profile = catchAsync(async (req, res) => {
 });
 
 const updateMyProfile = catchAsync(async (req, res) => {
-  const file = req.files as Express.Multer.File[];
+  const files = req.files as {
+    profileImage?: Express.Multer.File[];
+    certifications?: Express.Multer.File[];
+  };
+  const file = files?.profileImage?.[0];
+  const certificationFiles = files?.certifications;
   // ✅ multipart/form-data হলে data parse, না হলে সরাসরি body
   const formData = req.body.data ? JSON.parse(req.body.data) : req.body;
 
@@ -103,6 +108,7 @@ const updateMyProfile = catchAsync(async (req, res) => {
     req.user?.id,
     formData,
     file,
+    certificationFiles,
   );
   sendResponse(res, {
     statusCode: 200,
