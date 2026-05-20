@@ -55,7 +55,7 @@ import { Server } from 'socket.io';
 import socketHandler from './app/helper/socketHandler';
 import User from './app/modules/user/user.model';
 
-const PORT = config.port;
+const PORT = Number(config.port) || 5001;
 
 const httpServer = createServer(app);
 

@@ -14,10 +14,13 @@ const handleDuplicateError = (err: any): TGenericErrorResponse => {
 
   const errorSources: TErrorSources = [
     {
-      path: field,
-      message: duplicateValue
-        ? `${field || 'Value'} "${duplicateValue}" already exists`
-        : `${extractedMessage || 'Value'} already exists`,
+      path: field || '',
+      message:
+        field === 'NIDNumber' && (!duplicateValue || duplicateValue.trim() === '')
+          ? 'Unable to create account. Please try again.'
+          : duplicateValue
+            ? `${field || 'Value'} "${duplicateValue}" already exists`
+            : `${extractedMessage || 'Value'} already exists`,
     },
   ];
 

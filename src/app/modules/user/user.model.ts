@@ -117,7 +117,7 @@ const userSchema = new mongoose.Schema<IUser>(
 
 userSchema.pre('save', function (next) {
   if (this.NIDNumber === '') {
-    this.NIDNumber = undefined;
+    this.set('NIDNumber', undefined);
   }
   next();
 });
