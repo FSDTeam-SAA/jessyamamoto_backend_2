@@ -5,7 +5,7 @@ const handleDuplicateError = (err: any): TGenericErrorResponse => {
   const extractedMessage = match && match[1];
   const field =
     err.keyPattern && typeof err.keyPattern === 'object'
-      ? Object.keys(err.keyPattern)[0]
+      ? (Object.keys(err.keyPattern)[0] ?? '')
       : '';
   const duplicateValue =
     err.keyValue && field && field in err.keyValue
