@@ -31,7 +31,7 @@ const userSchema = new mongoose.Schema<IUser>(
       enum: ['find job', 'find care', 'admin'],
       required: true,
     },
-    profileImage: [String],
+    profileImage: String,
     bio: String,
     phone: String,
     otp: String,
@@ -81,7 +81,7 @@ const userSchema = new mongoose.Schema<IUser>(
     },
     gender: {
       type: String,
-      enum: ['male', 'female', 'other'],
+      default: '',
     },
     experienceLevel: {
       type: String,
@@ -100,6 +100,7 @@ const userSchema = new mongoose.Schema<IUser>(
     stripeAccountId: { type: String },
     reviewRatting: [{ type: mongoose.Schema.ObjectId, ref: 'Review' }],
     givenReviewRatting: [{ type: mongoose.Schema.ObjectId, ref: 'Review' }],
+    certifications: [{ type: String }],
     exprience: Number,
     experiences: [{ type: String }],
     language: [{ type: String }],
@@ -109,6 +110,7 @@ const userSchema = new mongoose.Schema<IUser>(
     professionalSkill: [{ type: String }],
     perferences: [{ type: String }],
     certifications: [{ type: String }],
+    galary: [{ type: String }],
   },
   {
     timestamps: true,
@@ -117,7 +119,7 @@ const userSchema = new mongoose.Schema<IUser>(
 
 userSchema.pre('save', function (next) {
   if (this.NIDNumber === '') {
-    this.NIDNumber = undefined;
+    this.set('NIDNumber', undefined);
   }
   next();
 });

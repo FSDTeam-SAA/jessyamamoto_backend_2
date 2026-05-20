@@ -1009,7 +1009,7 @@ const getMyServiceBookings = async (
   const result = await Booking.find(whereCondition)
     .populate({
       path: 'userId',
-      select: 'firstName lastName email phone profileImage',
+      select: 'firstName lastName email phone profileImage role',
     })
     .populate({
       path: 'serviceId',
