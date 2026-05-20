@@ -31,7 +31,7 @@ export interface IUser {
   city: string;
   // job
   status?: 'active' | 'inactive';
-  gender?: 'male' | 'female' | 'other';
+  gender?: string;
   experienceLevel?: 'beginner' | 'intermediate' | 'expert';
   userStatus?: 'approved' | 'reject' | 'panding';
   category?: Types.ObjectId[];
