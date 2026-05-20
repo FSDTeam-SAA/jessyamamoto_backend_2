@@ -81,7 +81,7 @@ const userSchema = new mongoose.Schema<IUser>(
     },
     gender: {
       type: String,
-      enum: ['male', 'female', 'other'],
+      default: '',
     },
     experienceLevel: {
       type: String,
