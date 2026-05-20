@@ -53,7 +53,7 @@ const getUserById = catchAsync(async (req, res) => {
 });
 
 const updateUserById = catchAsync(async (req, res) => {
-  const file = req.files as unknown as Express.Multer.File;
+  const file = req.file as Express.Multer.File | undefined;
   // ✅ multipart/form-data হলে data parse, না হলে সরাসরি body
   const formData = req.body.data ? JSON.parse(req.body.data) : req.body;
 
@@ -102,6 +102,7 @@ const updateMyProfile = catchAsync(async (req, res) => {
     req.user?.id,
     formData,
     file,
+    certificationFiles,
   );
   sendResponse(res, {
     statusCode: 200,

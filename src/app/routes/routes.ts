@@ -15,6 +15,7 @@ import { dashboardRoutes } from '../modules/dashboard/dashboard.routes';
 import { countryRoutes } from '../modules/countery/countery.routes';
 import { languageRoutes } from '../modules/language/language.routes';
 import { educationRoutes } from '../modules/education/education.routes';
+import { experienceRoutes } from '../modules/experience/experience.routes';
 
 const router = Router();
 
@@ -82,6 +83,10 @@ const moduleRoutes = [
   {
     path: '/education',
     route: educationRoutes,
+  },
+  {
+    path: '/experience',
+    route: experienceRoutes,
   },
 ];
 
