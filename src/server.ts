@@ -53,6 +53,7 @@ import config from './app/config';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import socketHandler from './app/helper/socketHandler';
+import User from './app/modules/user/user.model';
 
 const PORT = config.port;
 
@@ -80,6 +81,34 @@ export const getIO = (): Server => {
   return io;
 };
 
+const ensureUserIndexes = async () => {
+  try {
+    const collection = mongoose.connection.collection('users');
+
+    const cleaned = await collection.updateMany(
+      { $or: [{ NIDNumber: '' }, { NIDNumber: null }] },
+      { $unset: { NIDNumber: '' } },
+    );
+    if (cleaned.modifiedCount > 0) {
+      console.log(
+        `Unset empty NIDNumber on ${cleaned.modifiedCount} user(s)`,
+      );
+    }
+
+    const indexes = await collection.indexes();
+    const nidIndex = indexes.find((idx) => idx.key && 'NIDNumber' in idx.key);
+
+    if (nidIndex && !nidIndex.sparse) {
+      await collection.dropIndex(nidIndex.name || 'NIDNumber_1');
+      console.log('Dropped legacy NIDNumber unique index (non-sparse)');
+    }
+
+    await User.syncIndexes();
+  } catch (error) {
+    console.warn('Could not sync user indexes:', error);
+  }
+};
+
 const main = async () => {
   try {
     if (!config.mongoUri) {
@@ -88,6 +117,8 @@ const main = async () => {
 
     const mongo = await mongoose.connect(config.mongoUri);
     console.log(`✅ MongoDB connected: ${mongo.connection.host}`);
+
+    await ensureUserIndexes();
 
     httpServer.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);

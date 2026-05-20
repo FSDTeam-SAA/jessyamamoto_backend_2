@@ -90,6 +90,7 @@ const userSchema = new mongoose.Schema<IUser>(
     NIDNumber: {
       type: String,
       unique: true,
+      sparse: true,
     },
     countery: { type: String },
     city: { type: String },
@@ -113,6 +114,13 @@ const userSchema = new mongoose.Schema<IUser>(
     timestamps: true,
   },
 );
+
+userSchema.pre('save', function (next) {
+  if (this.NIDNumber === '') {
+    this.NIDNumber = undefined;
+  }
+  next();
+});
 
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
