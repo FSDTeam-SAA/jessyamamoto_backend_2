@@ -58,7 +58,7 @@ const createUser = async (payload: IUser) => {
     throw new AppError(400, 'User already exists');
   }
   const idx = Math.floor(Math.random() * 100);
-  payload.profileImage = [`https://avatar.iran.liara.run/public/${idx}.png`];
+  payload.profileImage = `https://avatar.iran.liara.run/public/${idx}.png`;
   const result = await User.create(payload);
 
   if (!result) {
@@ -161,8 +161,8 @@ const updateUserById = async (
   }
 
   if (file) {
-    const uploaded = await fileUploader.uploadToCloudinary(file);
-    payload.profileImage = [uploaded.url];
+    const { url } = await fileUploader.uploadToCloudinary(file);
+    payload.profileImage = url;
   }
 
   const result = await User.findByIdAndUpdate(id, payload, { new: true });
@@ -197,7 +197,6 @@ const updateMyProfile = async (
   id: string,
   payload: Partial<IUser>,
   file?: Express.Multer.File,
-  certificationFiles?: Express.Multer.File[],
 ) => {
   const user = await User.findById(id);
   if (!user) {
@@ -205,22 +204,8 @@ const updateMyProfile = async (
   }
 
   if (file) {
-    const uploaded = await fileUploader.uploadToCloudinary(file);
-    payload.profileImage = [uploaded.url];
-  }
-
-  if (certificationFiles && certificationFiles.length > 0) {
-    const uploadedUrls: string[] = [];
-    for (const certFile of certificationFiles) {
-      const uploaded = await fileUploader.uploadToCloudinary(certFile);
-      uploadedUrls.push(uploaded.url);
-    }
-    const baseCerts = Array.isArray(payload.certifications)
-      ? [...payload.certifications]
-      : Array.isArray(user.certifications)
-        ? [...user.certifications]
-        : [];
-    payload.certifications = [...baseCerts, ...uploadedUrls];
+    const { url } = await fileUploader.uploadToCloudinary(file);
+    payload.profileImage = url;
   }
 
   // ZIP changed → update location
@@ -375,6 +360,56 @@ const getStripeAccount = async (userId: string) => {
   }
 };
 
+const uploadGalaryImages = async (
+  userId: string,
+  payload: IUser,
+  files: Express.Multer.File[],
+) => {
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new AppError(404, 'User not found');
+  }
+  if (files?.length) {
+    const uploadedFiles = await Promise.all(
+      files.map((file) => fileUploader.uploadToCloudinary(file)),
+    );
+
+    payload.galary = uploadedFiles.map((file) => file.url);
+  }
+
+  const result = await User.findByIdAndUpdate(userId, payload, {
+    new: true,
+  });
+
+  return result;
+};
+
+const certificationsUpload = async (
+  userId: string,
+  payload: IUser,
+  files: Express.Multer.File[],
+) => {
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new AppError(404, 'User not found');
+  }
+  if (files?.length) {
+    const uploadedFiles = await Promise.all(
+      files.map((file) => fileUploader.uploadToCloudinary(file)),
+    );
+
+    payload.certifications = uploadedFiles.map((file) => file.url);
+  }
+
+  const result = await User.findByIdAndUpdate(userId, payload, {
+    new: true,
+  });
+
+  return result;
+};
+
 export const userService = {
   createUser,
   getAllUser,
@@ -386,4 +421,6 @@ export const userService = {
   createStripeAccount,
   getStripeAccount,
   getMyServicesPaidCategoryIds,
+  uploadGalaryImages,
+  certificationsUpload,
 };

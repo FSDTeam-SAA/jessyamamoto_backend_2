@@ -95,13 +95,7 @@ const profile = catchAsync(async (req, res) => {
 });
 
 const updateMyProfile = catchAsync(async (req, res) => {
-  const files = req.files as {
-    profileImage?: Express.Multer.File[];
-    certifications?: Express.Multer.File[];
-  };
-  const file = files?.profileImage?.[0];
-  const certificationFiles = files?.certifications;
-  // ✅ multipart/form-data হলে data parse, না হলে সরাসরি body
+  const file = req.files as unknown as Express.Multer.File;
   const formData = req.body.data ? JSON.parse(req.body.data) : req.body;
 
   const result = await userService.updateMyProfile(
@@ -139,6 +133,36 @@ const getStripeAccount = catchAsync(async (req, res) => {
   });
 });
 
+const uploadGalaryImages = catchAsync(async (req, res) => {
+  const files = req.files as Express.Multer.File[];
+  const result = await userService.uploadGalaryImages(
+    req.user?.id,
+    req.body,
+    files,
+  );
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Gallery updated successfully',
+    data: result,
+  });
+});
+
+const certificationsUpload = catchAsync(async (req, res) => {
+  const files = req.files as Express.Multer.File[];
+  const result = await userService.certificationsUpload(
+    req.user?.id,
+    req.body,
+    files,
+  );
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Gallery updated successfully',
+    data: result,
+  });
+});
+
 export const userController = {
   createUser,
   getAllUser,
@@ -149,4 +173,6 @@ export const userController = {
   updateMyProfile,
   createStripeAccount,
   getStripeAccount,
+  uploadGalaryImages,
+  certificationsUpload,
 };
