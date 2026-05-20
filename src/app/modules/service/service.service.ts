@@ -228,7 +228,7 @@ const registerServiceAndSubscription = async (
 
     user = await User.findOne({ email: payload.email });
     if (!user) {
-      user = await User.create({
+      const newUserPayload: Record<string, unknown> = {
         email: payload.email,
         password: payload.password || 'defaultpassword',
         firstName: payload.firstName,
@@ -237,8 +237,13 @@ const registerServiceAndSubscription = async (
         countery: payload.countery || payload.country || '',
         city: payload.city || '',
         location: payload.location || '',
-        NIDNumber: payload.NIDNumber || '',
-      });
+      };
+      const nid =
+        payload.NIDNumber != null ? String(payload.NIDNumber).trim() : '';
+      if (nid) {
+        newUserPayload.NIDNumber = nid;
+      }
+      user = await User.create(newUserPayload);
     }
   }
 

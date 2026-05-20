@@ -1,16 +1,23 @@
 import { TErrorSources, TGenericErrorResponse } from '../interface';
 
 const handleDuplicateError = (err: any): TGenericErrorResponse => {
-  // Extract value within double quotes using regex
   const match = err.message.match(/"([^"]*)"/);
-
-  // The extracted value will be in the first capturing group
   const extractedMessage = match && match[1];
+  const field =
+    err.keyPattern && typeof err.keyPattern === 'object'
+      ? Object.keys(err.keyPattern)[0]
+      : '';
+  const duplicateValue =
+    err.keyValue && field && field in err.keyValue
+      ? String(err.keyValue[field])
+      : extractedMessage;
 
   const errorSources: TErrorSources = [
     {
-      path: '',
-      message: `${extractedMessage} is already exists`,
+      path: field,
+      message: duplicateValue
+        ? `${field || 'Value'} "${duplicateValue}" already exists`
+        : `${extractedMessage || 'Value'} already exists`,
     },
   ];
 
@@ -18,7 +25,7 @@ const handleDuplicateError = (err: any): TGenericErrorResponse => {
 
   return {
     statusCode,
-    message: 'Invalid ID',
+    message: 'Duplicate value',
     errorSources,
   };
 };
