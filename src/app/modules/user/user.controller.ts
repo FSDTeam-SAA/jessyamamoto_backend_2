@@ -102,7 +102,6 @@ const updateMyProfile = catchAsync(async (req, res) => {
     req.user?.id,
     formData,
     file,
-    certificationFiles,
   );
   sendResponse(res, {
     statusCode: 200,
