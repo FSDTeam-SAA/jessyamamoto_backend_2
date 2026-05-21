@@ -31,14 +31,18 @@ router.get(
 router.put(
   '/profile',
   auth(userRole.admin, userRole['find care'], userRole['find job']),
-  fileUploader.upload.single('profileImage'),
+  fileUploader.upload.fields([
+    { name: 'profileImage', maxCount: 1 },
+    { name: 'galary', maxCount: 6 },
+    { name: 'certifications', maxCount: 10 },
+  ]),
   userController.updateMyProfile,
 );
 router.get('/all-user', auth(userRole.admin), userController.getAllUser);
 router.patch(
   '/update-galary',
   auth(userRole.admin, userRole['find care'], userRole['find job']),
-  fileUploader.upload.array('galary'),
+  fileUploader.upload.array('galary', 6),
   userController.uploadGalaryImages,
 );
 

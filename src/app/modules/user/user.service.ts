@@ -199,16 +199,50 @@ const profile = async (id: string) => {
 const updateMyProfile = async (
   id: string,
   payload: Partial<IUser>,
-  file?: Express.Multer.File,
+  profileImageFile?: Express.Multer.File,
+  certificationFiles: Express.Multer.File[] = [],
 ) => {
   const user = await User.findById(id);
   if (!user) {
     throw new AppError(404, 'User not found');
   }
 
-  if (file) {
-    const { url } = await fileUploader.uploadToCloudinary(file);
-    payload.profileImage = url;
+  if (profileImageFile) {
+    const { url } = await fileUploader.uploadToCloudinary(profileImageFile);
+    const galary = normalizeProfileGalary(user);
+    if (galary.length > 0) {
+      galary[0] = url;
+    } else {
+      galary.push(url);
+    }
+    payload.galary = galary.slice(0, MAX_PROFILE_PHOTOS);
+    payload.profileImage = syncProfileImageFromGalary(payload.galary, url);
+  }
+
+  if (Array.isArray(payload.galary)) {
+    const galary = payload.galary
+      .map((u) => String(u).trim())
+      .filter((u) => u.length > 0)
+      .filter((u, i, arr) => arr.indexOf(u) === i)
+      .slice(0, MAX_PROFILE_PHOTOS);
+    payload.galary = galary;
+    payload.profileImage = syncProfileImageFromGalary(
+      galary,
+      payload.profileImage ?? user.profileImage,
+    );
+  }
+
+  if (certificationFiles.length > 0) {
+    const uploaded = await Promise.all(
+      certificationFiles.map((file) =>
+        fileUploader.uploadToCloudinary(file),
+      ),
+    );
+    const newUrls = uploaded.map((f) => f.url);
+    const existingUrls = Array.isArray(payload.certifications)
+      ? payload.certifications.filter((u) => u && String(u).trim())
+      : (user.certifications ?? []).map((u) => String(u));
+    payload.certifications = [...existingUrls, ...newUrls];
   }
 
   // ZIP changed → update location
@@ -234,6 +268,29 @@ const updateMyProfile = async (
 };
 
 const stripe = new Stripe(config.stripe.secretKey!);
+
+const MAX_PROFILE_PHOTOS = 6;
+
+const normalizeProfileGalary = (user: {
+  galary?: string[];
+  profileImage?: string;
+}): string[] => {
+  const urls: string[] = [];
+  const push = (raw?: string | null) => {
+    const u = raw?.trim();
+    if (u && !urls.includes(u)) urls.push(u);
+  };
+  push(user.profileImage);
+  for (const item of user.galary ?? []) {
+    push(String(item));
+  }
+  return urls.slice(0, MAX_PROFILE_PHOTOS);
+};
+
+const syncProfileImageFromGalary = (galary: string[], fallback?: string) => {
+  if (galary.length > 0) return galary[0]!;
+  return fallback?.trim() || '';
+};
 
 // stripe account create (Stripe requires 5–22 chars for statement_descriptor)
 const formatStatementDescriptor = (text: string) => {
@@ -365,7 +422,7 @@ const getStripeAccount = async (userId: string) => {
 
 const uploadGalaryImages = async (
   userId: string,
-  payload: IUser,
+  payload: Partial<IUser>,
   files: Express.Multer.File[],
 ) => {
   const user = await User.findById(userId);
@@ -373,17 +430,45 @@ const uploadGalaryImages = async (
   if (!user) {
     throw new AppError(404, 'User not found');
   }
+
+  let galary = normalizeProfileGalary(user);
+
+  if (Array.isArray(payload.galary)) {
+    galary = payload.galary
+      .map((u) => String(u).trim())
+      .filter((u) => u.length > 0)
+      .filter((u, i, arr) => arr.indexOf(u) === i)
+      .slice(0, MAX_PROFILE_PHOTOS);
+  }
+
   if (files?.length) {
     const uploadedFiles = await Promise.all(
       files.map((file) => fileUploader.uploadToCloudinary(file)),
     );
-
-    payload.galary = uploadedFiles.map((file) => file.url);
+    const newUrls = uploadedFiles.map((file) => file.url);
+    const combined = [...galary, ...newUrls].filter(
+      (u, i, arr) => arr.indexOf(u) === i,
+    );
+    if (combined.length > MAX_PROFILE_PHOTOS) {
+      throw new AppError(
+        400,
+        `Maximum ${MAX_PROFILE_PHOTOS} profile photos allowed`,
+      );
+    }
+    galary = combined;
   }
 
-  const result = await User.findByIdAndUpdate(userId, payload, {
-    new: true,
-  });
+  const profileImage = syncProfileImageFromGalary(galary, user.profileImage);
+
+  const result = await User.findByIdAndUpdate(
+    userId,
+    { galary, profileImage },
+    { new: true },
+  );
+
+  if (!result) {
+    throw new AppError(404, 'User not found');
+  }
 
   return result;
 };
