@@ -81,6 +81,7 @@ const userSchema = new mongoose.Schema<IUser>(
     },
     gender: {
       type: String,
+      trim: true,
       default: '',
     },
     experienceLevel: {

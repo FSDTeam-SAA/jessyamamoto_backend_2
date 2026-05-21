@@ -207,6 +207,16 @@ import pagination, { IOption } from '../../helper/pagenation';
 
 const stripe = new Stripe(config.stripe.secretKey!);
 
+const resolveGender = (
+  payload: { gender?: string },
+  user?: { gender?: string } | null,
+): string => {
+  const fromPayload = payload.gender && String(payload.gender).trim();
+  if (fromPayload) return fromPayload;
+  const fromUser = user?.gender && String(user.gender).trim();
+  return fromUser || '';
+};
+
 const registerServiceAndSubscription = async (
   payload: any,
   userId?: string,
@@ -228,6 +238,7 @@ const registerServiceAndSubscription = async (
 
     user = await User.findOne({ email: payload.email });
     if (!user) {
+      const gender = resolveGender(payload);
       const newUserPayload: Record<string, unknown> = {
         email: payload.email,
         password: payload.password || 'defaultpassword',
@@ -237,6 +248,7 @@ const registerServiceAndSubscription = async (
         countery: payload.countery || payload.country || '',
         city: payload.city || '',
         location: payload.location || '',
+        ...(gender ? { gender } : {}),
       };
       const nid =
         payload.NIDNumber != null ? String(payload.NIDNumber).trim() : '';
@@ -245,6 +257,12 @@ const registerServiceAndSubscription = async (
       }
       user = await User.create(newUserPayload);
     }
+  }
+
+  const genderFromPayload = resolveGender(payload, user);
+  if (genderFromPayload && user && user.gender !== genderFromPayload) {
+    await User.findByIdAndUpdate(user._id, { gender: genderFromPayload });
+    user.gender = genderFromPayload;
   }
 
   /* ================= EACH CATEGORY = ITS OWN STRIPE PAYMENT ================= */
@@ -275,11 +293,7 @@ const registerServiceAndSubscription = async (
 
   /** Account + service without paid subscription (no Stripe). */
   if (!effectiveSubscriptionId) {
-    const gender =
-      (payload.gender && String(payload.gender).trim()) ||
-      ((user as { gender?: string }).gender &&
-        String((user as { gender?: string }).gender).trim()) ||
-      '';
+    const gender = resolveGender(payload, user);
     if (!gender) {
       throw new AppError(400, 'gender is required');
     }
@@ -325,6 +339,7 @@ const registerServiceAndSubscription = async (
             service: created!._id,
           },
           ...(loc ? { location: loc } : {}),
+          gender,
         },
         { session: dbSession },
       );
@@ -349,6 +364,11 @@ const registerServiceAndSubscription = async (
       service: createdService,
       checkoutUrl: null,
     };
+  }
+
+  const genderForCheckout = resolveGender(payload, user);
+  if (!genderForCheckout) {
+    throw new AppError(400, 'gender is required');
   }
 
   const subscriptionDoc = await Subscription.findById(effectiveSubscriptionId);
@@ -393,7 +413,7 @@ const registerServiceAndSubscription = async (
     pendingServiceRegistration: {
       categoryId: payload.categoryId,
       location: payload.location || payload.city || '',
-      gender: payload.gender,
+      gender: genderForCheckout,
       days: payload.days,
       hourRate:
         user.role === 'find job' && payload.hourRate != null
@@ -469,6 +489,11 @@ const completePendingServiceRegistration = async (stripeSessionId: string) => {
       { session: dbSession },
     );
 
+    const pendingGender =
+      pending.gender && String(pending.gender).trim()
+        ? String(pending.gender).trim()
+        : resolveGender({}, regUser);
+
     await User.findByIdAndUpdate(
       regUser._id,
       {
@@ -477,6 +502,7 @@ const completePendingServiceRegistration = async (stripeSessionId: string) => {
           service: created!._id,
         },
         ...(pending.location && { location: pending.location }),
+        ...(pendingGender ? { gender: pendingGender } : {}),
       },
       { session: dbSession },
     );

@@ -57,6 +57,9 @@ const createUser = async (payload: IUser) => {
   if (user) {
     throw new AppError(400, 'User already exists');
   }
+  if (payload.gender != null) {
+    payload.gender = String(payload.gender).trim();
+  }
   const idx = Math.floor(Math.random() * 100);
   payload.profileImage = `https://avatar.iran.liara.run/public/${idx}.png`;
   const result = await User.create(payload);
