@@ -8,6 +8,16 @@ import pagination, { IOption } from '../../helper/pagenation';
 import mongoose from 'mongoose';
 import Stripe from 'stripe';
 import config from '../../config';
+import countryToCurrency from 'country-to-currency';
+
+const getCurrencyByCountryCode = (countryCode?: string) => {
+  const normalizedCountryCode = countryCode?.trim().toUpperCase();
+  const currency = Object.entries(countryToCurrency).find(
+    ([code]) => code === normalizedCountryCode,
+  )?.[1];
+
+  return currency?.toLowerCase() ?? 'usd';
+};
 
 // const stripe = new Stripe(config.stripe.secretKey!);
 
@@ -287,8 +297,8 @@ const withBookingProgress = <T extends { status?: string }>(booking: T) => {
     cancelled: { step: 0, label: 'Booking cancelled', isTerminal: true },
   };
 
-  const progress =
-    progressMap[status] || progressMap.pending || { step: 1, label: '', isTerminal: false };
+  const progress = progressMap[status] ||
+    progressMap.pending || { step: 1, label: '', isTerminal: false };
 
   return {
     ...booking,
@@ -523,6 +533,7 @@ const createBooking = async (payload: {
   // TRANSACTION ✅
   const session = await mongoose.startSession();
   session.startTransaction();
+  const currency = getCurrencyByCountryCode(user.countery); // BD, US, IN
 
   try {
     const sessionCreateParams: Stripe.Checkout.SessionCreateParams = {
@@ -532,7 +543,7 @@ const createBooking = async (payload: {
       line_items: [
         {
           price_data: {
-            currency: 'usd',
+            currency: currency,
             unit_amount: totalAmountCents,
             product_data: {
               name: `Booking: ${service.firstName} ${service.lastName}`,
@@ -568,9 +579,8 @@ const createBooking = async (payload: {
 
     let checkoutSession: Stripe.Checkout.Session;
     try {
-      checkoutSession = await stripe.checkout.sessions.create(
-        sessionCreateParams,
-      );
+      checkoutSession =
+        await stripe.checkout.sessions.create(sessionCreateParams);
     } catch (err: unknown) {
       const stripeErr = err as {
         type?: string;
@@ -763,7 +773,8 @@ const updateBooking = async (id: string, payload: any, userId?: string) => {
   })
     .populate({
       path: 'userId',
-      select: 'firstName lastName email phone profileImage role professionalSkill',
+      select:
+        'firstName lastName email phone profileImage role professionalSkill',
     })
     .populate({
       path: 'serviceId',
@@ -920,7 +931,8 @@ const getAllMyBooking = async (
       select: 'firstName lastName email location hourRate gender days',
       populate: {
         path: 'userId',
-        select: 'firstName lastName email phone profileImage role professionalSkill',
+        select:
+          'firstName lastName email phone profileImage role professionalSkill',
       },
     })
     .populate({
