@@ -8,16 +8,16 @@ import pagination, { IOption } from '../../helper/pagenation';
 import mongoose from 'mongoose';
 import Stripe from 'stripe';
 import config from '../../config';
-import countryToCurrency from 'country-to-currency';
+// import countryToCurrency from 'country-to-currency';
 
-const getCurrencyByCountryCode = (countryCode?: string) => {
-  const normalizedCountryCode = countryCode?.trim().toUpperCase();
-  const currency = Object.entries(countryToCurrency).find(
-    ([code]) => code === normalizedCountryCode,
-  )?.[1];
+// const getCurrencyByCountryCode = (countryCode?: string) => {
+//   const normalizedCountryCode = countryCode?.trim().toUpperCase();
+//   const currency = Object.entries(countryToCurrency).find(
+//     ([code]) => code === normalizedCountryCode,
+//   )?.[1];
 
-  return currency?.toLowerCase() ?? 'usd';
-};
+//   return currency?.toLowerCase() ?? 'usd';
+// };
 
 // const stripe = new Stripe(config.stripe.secretKey!);
 
@@ -533,7 +533,7 @@ const createBooking = async (payload: {
   // TRANSACTION ✅
   const session = await mongoose.startSession();
   session.startTransaction();
-  const currency = getCurrencyByCountryCode(user.countery); // BD, US, IN
+  // const currency = getCurrencyByCountryCode(user.countery); // BD, US, IN
 
   try {
     const sessionCreateParams: Stripe.Checkout.SessionCreateParams = {
@@ -543,7 +543,7 @@ const createBooking = async (payload: {
       line_items: [
         {
           price_data: {
-            currency: currency,
+            currency: 'usd',
             unit_amount: totalAmountCents,
             product_data: {
               name: `Booking: ${service.firstName} ${service.lastName}`,
