@@ -9,7 +9,6 @@ import { IUser } from './user.interface';
 import User from './user.model';
 import config from '../../config';
 import { getLocationFromZip } from '../../helper/geocode';
-import { userRole } from './user.constant';
 
 /**
  * Category ids for home "My Services": categories the user registered (user.category),
@@ -58,17 +57,8 @@ const createUser = async (payload: IUser) => {
   if (user) {
     throw new AppError(400, 'User already exists');
   }
-  if (
-    payload.role === userRole.admin ||
-    payload.role === userRole['find care']
-  ) {
-    payload.userStatus = 'approved';
-  }
-  if (payload.gender != null) {
-    payload.gender = String(payload.gender).trim();
-  }
   const idx = Math.floor(Math.random() * 100);
-  payload.profileImage = `https://avatar.iran.liara.run/public/${idx}.png`;
+  payload.profileImage = [`https://avatar.iran.liara.run/public/${idx}.png`];
   const result = await User.create(payload);
 
   if (!result) {
@@ -163,16 +153,18 @@ const getUserById = async (id: string) => {
 const updateUserById = async (
   id: string,
   payload: IUser,
-  file?: Express.Multer.File,
+  file?: Express.Multer.File[],
 ) => {
   const user = await User.findById(id);
   if (!user) {
     throw new AppError(404, 'User not found');
   }
 
-  if (file) {
-    const { url } = await fileUploader.uploadToCloudinary(file);
-    payload.profileImage = url;
+  if (file?.length) {
+    const uploadedFiles = await Promise.all(
+      file.map((f) => fileUploader.uploadToCloudinary(f)),
+    );
+    payload.profileImage = uploadedFiles.map((f) => f.url);
   }
 
   const result = await User.findByIdAndUpdate(id, payload, { new: true });
@@ -206,50 +198,18 @@ const profile = async (id: string) => {
 const updateMyProfile = async (
   id: string,
   payload: Partial<IUser>,
-  profileImageFile?: Express.Multer.File,
-  certificationFiles: Express.Multer.File[] = [],
+  file?: Express.Multer.File[],
 ) => {
   const user = await User.findById(id);
   if (!user) {
     throw new AppError(404, 'User not found');
   }
 
-  if (profileImageFile) {
-    const { url } = await fileUploader.uploadToCloudinary(profileImageFile);
-    const galary = normalizeProfileGalary(user);
-    if (galary.length > 0) {
-      galary[0] = url;
-    } else {
-      galary.push(url);
-    }
-    payload.galary = galary.slice(0, MAX_PROFILE_PHOTOS);
-    payload.profileImage = syncProfileImageFromGalary(payload.galary, url);
-  }
-
-  if (Array.isArray(payload.galary)) {
-    const galary = payload.galary
-      .map((u) => String(u).trim())
-      .filter((u) => u.length > 0)
-      .filter((u, i, arr) => arr.indexOf(u) === i)
-      .slice(0, MAX_PROFILE_PHOTOS);
-    payload.galary = galary;
-    payload.profileImage = syncProfileImageFromGalary(
-      galary,
-      payload.profileImage ?? user.profileImage,
+  if (file?.length) {
+    const uploadedFiles = await Promise.all(
+      file.map((f) => fileUploader.uploadToCloudinary(f)),
     );
-  }
-
-  if (certificationFiles.length > 0) {
-    const uploaded = await Promise.all(
-      certificationFiles.map((file) =>
-        fileUploader.uploadToCloudinary(file),
-      ),
-    );
-    const newUrls = uploaded.map((f) => f.url);
-    const existingUrls = Array.isArray(payload.certifications)
-      ? payload.certifications.filter((u) => u && String(u).trim())
-      : (user.certifications ?? []).map((u) => String(u));
-    payload.certifications = [...existingUrls, ...newUrls];
+    payload.profileImage = uploadedFiles.map((f) => f.url);
   }
 
   // ZIP changed → update location
@@ -275,29 +235,6 @@ const updateMyProfile = async (
 };
 
 const stripe = new Stripe(config.stripe.secretKey!);
-
-const MAX_PROFILE_PHOTOS = 6;
-
-const normalizeProfileGalary = (user: {
-  galary?: string[];
-  profileImage?: string;
-}): string[] => {
-  const urls: string[] = [];
-  const push = (raw?: string | null) => {
-    const u = raw?.trim();
-    if (u && !urls.includes(u)) urls.push(u);
-  };
-  push(user.profileImage);
-  for (const item of user.galary ?? []) {
-    push(String(item));
-  }
-  return urls.slice(0, MAX_PROFILE_PHOTOS);
-};
-
-const syncProfileImageFromGalary = (galary: string[], fallback?: string) => {
-  if (galary.length > 0) return galary[0]!;
-  return fallback?.trim() || '';
-};
 
 // stripe account create (Stripe requires 5–22 chars for statement_descriptor)
 const formatStatementDescriptor = (text: string) => {
@@ -427,84 +364,6 @@ const getStripeAccount = async (userId: string) => {
   }
 };
 
-const uploadGalaryImages = async (
-  userId: string,
-  payload: Partial<IUser>,
-  files: Express.Multer.File[],
-) => {
-  const user = await User.findById(userId);
-
-  if (!user) {
-    throw new AppError(404, 'User not found');
-  }
-
-  let galary = normalizeProfileGalary(user);
-
-  if (Array.isArray(payload.galary)) {
-    galary = payload.galary
-      .map((u) => String(u).trim())
-      .filter((u) => u.length > 0)
-      .filter((u, i, arr) => arr.indexOf(u) === i)
-      .slice(0, MAX_PROFILE_PHOTOS);
-  }
-
-  if (files?.length) {
-    const uploadedFiles = await Promise.all(
-      files.map((file) => fileUploader.uploadToCloudinary(file)),
-    );
-    const newUrls = uploadedFiles.map((file) => file.url);
-    const combined = [...galary, ...newUrls].filter(
-      (u, i, arr) => arr.indexOf(u) === i,
-    );
-    if (combined.length > MAX_PROFILE_PHOTOS) {
-      throw new AppError(
-        400,
-        `Maximum ${MAX_PROFILE_PHOTOS} profile photos allowed`,
-      );
-    }
-    galary = combined;
-  }
-
-  const profileImage = syncProfileImageFromGalary(galary, user.profileImage);
-
-  const result = await User.findByIdAndUpdate(
-    userId,
-    { galary, profileImage },
-    { new: true },
-  );
-
-  if (!result) {
-    throw new AppError(404, 'User not found');
-  }
-
-  return result;
-};
-
-const certificationsUpload = async (
-  userId: string,
-  payload: IUser,
-  files: Express.Multer.File[],
-) => {
-  const user = await User.findById(userId);
-
-  if (!user) {
-    throw new AppError(404, 'User not found');
-  }
-  if (files?.length) {
-    const uploadedFiles = await Promise.all(
-      files.map((file) => fileUploader.uploadToCloudinary(file)),
-    );
-
-    payload.certifications = uploadedFiles.map((file) => file.url);
-  }
-
-  const result = await User.findByIdAndUpdate(userId, payload, {
-    new: true,
-  });
-
-  return result;
-};
-
 export const userService = {
   createUser,
   getAllUser,
@@ -516,6 +375,4 @@ export const userService = {
   createStripeAccount,
   getStripeAccount,
   getMyServicesPaidCategoryIds,
-  uploadGalaryImages,
-  certificationsUpload,
 };

@@ -31,35 +31,17 @@ router.get(
 router.put(
   '/profile',
   auth(userRole.admin, userRole['find care'], userRole['find job']),
-  fileUploader.upload.fields([
-    { name: 'profileImage', maxCount: 1 },
-    { name: 'galary', maxCount: 6 },
-    { name: 'certifications', maxCount: 10 },
-  ]),
+  fileUploader.upload.array('profileImage'),
   userController.updateMyProfile,
 );
 router.get('/all-user', auth(userRole.admin), userController.getAllUser);
-router.patch(
-  '/update-galary',
-  auth(userRole.admin, userRole['find care'], userRole['find job']),
-  fileUploader.upload.array('galary', 6),
-  userController.uploadGalaryImages,
-);
-
-router.patch(
-  '/update-certifications',
-  auth(userRole.admin, userRole['find care'], userRole['find job']),
-  fileUploader.upload.array('certifications'),
-  userController.certificationsUpload,
-);
 
 router.put(
   '/:id',
   auth(userRole.admin),
-  fileUploader.upload.single('profileImage'),
+  fileUploader.upload.array('profileImage'),
   userController.updateUserById,
 );
-
 router.get('/:id', userController.getUserById);
 router.delete('/:id', auth(userRole.admin), userController.deleteUserById);
 

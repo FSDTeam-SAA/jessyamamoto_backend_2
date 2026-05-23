@@ -8,278 +8,6 @@ import pagination, { IOption } from '../../helper/pagenation';
 import mongoose from 'mongoose';
 import Stripe from 'stripe';
 import config from '../../config';
-// import countryToCurrency from 'country-to-currency';
-
-// const getCurrencyByCountryCode = (countryCode?: string) => {
-//   const normalizedCountryCode = countryCode?.trim().toUpperCase();
-//   const currency = Object.entries(countryToCurrency).find(
-//     ([code]) => code === normalizedCountryCode,
-//   )?.[1];
-
-//   return currency?.toLowerCase() ?? 'usd';
-// };
-
-// const stripe = new Stripe(config.stripe.secretKey!);
-
-// // ===================== Helper: Validate Date Format =====================
-// const isValidDate = (dateString: string): boolean => {
-//   const date = new Date(dateString);
-//   return date instanceof Date && !isNaN(date.getTime());
-// };
-
-// // ===================== Helper: Check Time Slot Availability =====================
-// const isSlotAvailable = async (
-//   serviceId: string,
-//   day: string,
-//   date: string,
-//   time: string,
-//   excludeBookingId?: string,
-// ): Promise<boolean> => {
-//   const query: any = {
-//     serviceId,
-//     day,
-//     date,
-//     time,
-//     status: { $in: ['pending', 'accepted'] }, // Only active bookings block slots
-//   };
-
-//   // Exclude current booking when updating
-//   if (excludeBookingId) {
-//     query._id = { $ne: excludeBookingId };
-//   }
-
-//   const conflict = await Booking.findOne(query);
-//   return !conflict;
-// };
-
-// // ===================== Helper: Validate Day and Date Match =====================
-// const validateDayAndDate = (day: string, date: string): void => {
-//   const bookingDate = new Date(date);
-//   const weekDays = [
-//     'Sunday',
-//     'Monday',
-//     'Tuesday',
-//     'Wednesday',
-//     'Thursday',
-//     'Friday',
-//     'Saturday',
-//   ];
-//   const actualDay = weekDays[bookingDate.getDay()];
-
-//   if (actualDay !== day) {
-//     throw new AppError(
-//       400,
-//       `Date does not match selected day. ${date} is ${actualDay}, not ${day}`,
-//     );
-//   }
-// };
-
-// // ===================== Helper: Validate Booking Date (Not in Past) =====================
-// const validateBookingDate = (date: string): void => {
-//   const bookingDate = new Date(date);
-//   const today = new Date();
-//   today.setHours(0, 0, 0, 0);
-
-//   if (bookingDate < today) {
-//     throw new AppError(400, 'Cannot book for past dates');
-//   }
-// };
-
-// //=====================================update code====================================
-// const createBooking = async (payload: {
-//   serviceId: string;
-//   day: string;
-//   date: string;
-//   time: string;
-//   userId: string;
-// }) => {
-//   // ================= DATE VALIDATION =================
-//   if (!isValidDate(payload.date)) {
-//     throw new AppError(400, 'Invalid date format. Use YYYY-MM-DD');
-//   }
-
-//   validateBookingDate(payload.date);
-//   validateDayAndDate(payload.day, payload.date);
-
-//   // ================= OBJECT ID VALIDATION =================
-//   if (!mongoose.Types.ObjectId.isValid(payload.serviceId)) {
-//     throw new AppError(400, 'Invalid service ID');
-//   }
-
-//   // ================= USER CHECK =================
-//   const user = await User.findById(payload.userId);
-//   if (!user) throw new AppError(404, 'User not found');
-
-//   if (!user.isSubscription) {
-//     throw new AppError(403, 'You need to subscribe to find care');
-//   }
-
-//   if (user.role !== 'find care') {
-//     throw new AppError(403, 'Only users looking for care can create bookings');
-//   }
-
-//   // ================= SERVICE CHECK =================
-//   const service = await Service.findById(payload.serviceId)
-//     .populate('userId')
-//     .lean();
-
-//   if (!service) throw new AppError(404, 'Service not found');
-//   if (!service.categoryId)
-//     throw new AppError(400, 'Service category not found');
-
-//   // Prevent self booking
-//   const provider: any = service.userId;
-//   if (provider._id.toString() === payload.userId) {
-//     throw new AppError(400, 'You cannot book your own service');
-//   }
-
-//   // ================= DAY VALIDATION (FIXED) =================
-//   const daySlot = service.days?.find((d: any) => d.day === payload.day);
-
-//   if (!daySlot) {
-//     throw new AppError(400, `Service is not available on ${payload.day}`);
-//   }
-
-//   // ================= TIME VALIDATION (FIXED) =================
-//   const isTimeInRange =
-//     payload.time >= daySlot.startTime && payload.time <= daySlot.endTime;
-
-//   if (!isTimeInRange) {
-//     throw new AppError(400, `Service is not available at ${payload.time}`);
-//   }
-
-//   // ================= SLOT CHECK =================
-//   const available = await isSlotAvailable(
-//     payload.serviceId,
-//     payload.day,
-//     payload.date,
-//     payload.time,
-//   );
-
-//   if (!available) {
-//     throw new AppError(
-//       409,
-//       'This time slot is already booked for the selected date',
-//     );
-//   }
-
-//   // ================= PROVIDER CHECK =================
-//   if (!provider.stripeAccountId) {
-//     throw new AppError(400, 'Service provider has not completed Stripe setup');
-//   }
-
-//   // ================= PAYMENT CALCULATION =================
-//   const hourRate = service.hourRate || 0;
-//   const totalAmountCents = Math.round(hourRate * 100);
-//   const adminFeeCents = Math.round(totalAmountCents * 0.1);
-//   const providerAmountCents = totalAmountCents - adminFeeCents;
-
-//   // ================= TRANSACTION START =================
-//   const session = await mongoose.startSession();
-//   session.startTransaction();
-
-//   try {
-//     // ================= STRIPE SESSION =================
-//     const checkoutSession = await stripe.checkout.sessions.create({
-//       mode: 'payment',
-//       payment_method_types: ['card'],
-//       customer_email: user.email,
-//       line_items: [
-//         {
-//           price_data: {
-//             currency: 'usd',
-//             unit_amount: totalAmountCents,
-//             product_data: {
-//               name: `Booking: ${service.firstName} ${service.lastName}`,
-//               description: `${payload.day}, ${payload.date} at ${payload.time}`,
-//             },
-//           },
-//           quantity: 1,
-//         },
-//       ],
-//       payment_intent_data: {
-//         application_fee_amount: adminFeeCents,
-//         transfer_data: {
-//           destination: provider.stripeAccountId,
-//         },
-//       },
-//       success_url: `${config.frontendUrl}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
-//       cancel_url: `${config.frontendUrl}/booking-cancel`,
-//       metadata: {
-//         userId: payload.userId,
-//         serviceId: payload.serviceId,
-//         serviceProviderId: provider._id.toString(),
-//         day: payload.day,
-//         date: payload.date,
-//         time: payload.time,
-//         paymentType: 'booking',
-//         totalAmount: totalAmountCents.toString(),
-//         adminFee: adminFeeCents.toString(),
-//         providerAmount: providerAmountCents.toString(),
-//       },
-//     });
-
-//     // ================= CREATE BOOKING =================
-//     const [createdBooking] = await Booking.create(
-//       [
-//         {
-//           serviceId: service._id,
-//           categoryId: service.categoryId,
-//           userId: payload.userId,
-//           day: payload.day,
-//           date: payload.date,
-//           time: payload.time,
-//           location: service.location,
-//           status: 'pending',
-//         },
-//       ],
-//       { session },
-//     );
-
-//     if (!createdBooking) {
-//       throw new AppError(500, 'Failed to create booking');
-//     }
-
-//     // ================= CREATE PAYMENT =================
-//     await Payment.create(
-//       [
-//         {
-//           user: payload.userId,
-//           service: service._id,
-//           booking: createdBooking._id,
-//           category: service.categoryId,
-//           stripeSessionId: checkoutSession.id,
-//           amount: hourRate,
-//           currency: 'usd',
-//           status: 'pending',
-//           paymentType: 'booking',
-//           userType: 'findCare',
-//           adminFree: adminFeeCents / 100,
-//           serviceProviderFree: providerAmountCents / 100,
-//         },
-//       ],
-//       { session },
-//     );
-
-//     // ================= UPDATE USER =================
-//     user.totalBooking = user.totalBooking || [];
-//     user.totalBooking.push(createdBooking._id);
-//     await user.save({ session });
-
-//     await session.commitTransaction();
-//     session.endSession();
-
-//     return {
-//       booking: createdBooking,
-//       checkoutUrl: checkoutSession.url,
-//       sessionId: checkoutSession.id,
-//     };
-//   } catch (error) {
-//     await session.abortTransaction();
-//     session.endSession();
-//     throw error;
-//   }
-// };
 
 const stripe = new Stripe(config.stripe.secretKey!);
 
@@ -297,8 +25,8 @@ const withBookingProgress = <T extends { status?: string }>(booking: T) => {
     cancelled: { step: 0, label: 'Booking cancelled', isTerminal: true },
   };
 
-  const progress = progressMap[status] ||
-    progressMap.pending || { step: 1, label: '', isTerminal: false };
+  const progress =
+    progressMap[status] || progressMap.pending || { step: 1, label: '', isTerminal: false };
 
   return {
     ...booking,
@@ -533,7 +261,6 @@ const createBooking = async (payload: {
   // TRANSACTION ✅
   const session = await mongoose.startSession();
   session.startTransaction();
-  // const currency = getCurrencyByCountryCode(user.countery); // BD, US, IN
 
   try {
     const sessionCreateParams: Stripe.Checkout.SessionCreateParams = {
@@ -579,8 +306,9 @@ const createBooking = async (payload: {
 
     let checkoutSession: Stripe.Checkout.Session;
     try {
-      checkoutSession =
-        await stripe.checkout.sessions.create(sessionCreateParams);
+      checkoutSession = await stripe.checkout.sessions.create(
+        sessionCreateParams,
+      );
     } catch (err: unknown) {
       const stripeErr = err as {
         type?: string;
@@ -773,8 +501,7 @@ const updateBooking = async (id: string, payload: any, userId?: string) => {
   })
     .populate({
       path: 'userId',
-      select:
-        'firstName lastName email phone profileImage role professionalSkill',
+      select: 'firstName lastName email phone profileImage role professionalSkill',
     })
     .populate({
       path: 'serviceId',
@@ -931,8 +658,7 @@ const getAllMyBooking = async (
       select: 'firstName lastName email location hourRate gender days',
       populate: {
         path: 'userId',
-        select:
-          'firstName lastName email phone profileImage role professionalSkill',
+        select: 'firstName lastName email phone profileImage role professionalSkill',
       },
     })
     .populate({
@@ -1021,7 +747,7 @@ const getMyServiceBookings = async (
   const result = await Booking.find(whereCondition)
     .populate({
       path: 'userId',
-      select: 'firstName lastName email phone profileImage role',
+      select: 'firstName lastName email phone profileImage',
     })
     .populate({
       path: 'serviceId',
