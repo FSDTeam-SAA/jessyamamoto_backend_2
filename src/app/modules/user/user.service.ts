@@ -9,6 +9,7 @@ import { IUser } from './user.interface';
 import User from './user.model';
 import config from '../../config';
 import { getLocationFromZip } from '../../helper/geocode';
+import { userRole } from './user.constant';
 
 /**
  * Category ids for home "My Services": categories the user registered (user.category),
@@ -56,6 +57,12 @@ const createUser = async (payload: IUser) => {
   const user = await User.findOne({ email: payload.email });
   if (user) {
     throw new AppError(400, 'User already exists');
+  }
+  if (
+    payload.role === userRole.admin ||
+    payload.role === userRole['find care']
+  ) {
+    payload.userStatus = 'approved';
   }
   if (payload.gender != null) {
     payload.gender = String(payload.gender).trim();
