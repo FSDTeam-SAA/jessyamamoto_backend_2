@@ -217,6 +217,26 @@ const resolveGender = (
   return fromUser || '';
 };
 
+const userProfileProjection = {
+  _id: '$user._id',
+  firstName: '$user.firstName',
+  lastName: '$user.lastName',
+  email: '$user.email',
+  role: '$user.role',
+  profileImage: '$user.profileImage',
+  bio: '$user.bio',
+  phone: '$user.phone',
+  gender: '$user.gender',
+  experienceLevel: '$user.experienceLevel',
+  location: '$user.location',
+  language: '$user.language',
+  agegroup: '$user.agegroup',
+  education: '$user.education',
+  canHelpWith: '$user.canHelpWith',
+  professionalSkill: '$user.professionalSkill',
+  perferences: '$user.perferences',
+};
+
 const registerServiceAndSubscription = async (
   payload: any,
   userId?: string,
