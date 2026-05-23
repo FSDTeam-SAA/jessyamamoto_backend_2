@@ -12,23 +12,12 @@ import createOtpTemplate from '../../utils/createOtpTemplate';
 import { userRole } from '../user/user.constant';
 import { getMyServicesPaidCategoryIds } from '../user/user.service';
 
-const setInitialUserStatus = (payload: Partial<IUser>) => {
-  if (
-    payload.role === userRole.admin ||
-    payload.role === userRole['find care']
-  ) {
-    payload.userStatus = 'approved';
-  }
-};
-
 const registerUser = async (payload: Partial<IUser>) => {
   const exist = await User.findOne({ email: payload.email });
   if (exist) throw new AppError(400, 'User already exists');
 
-  setInitialUserStatus(payload);
-
   const idx = Math.floor(Math.random() * 100);
-  payload.profileImage = `https://avatar.iran.liara.run/public/${idx}.png`;
+  payload.profileImage = [`https://avatar.iran.liara.run/public/${idx}.png`];
 
   const user = await User.create(payload);
 
@@ -49,11 +38,11 @@ const loginUser = async (payload: Partial<IUser>) => {
     }
   }
 
-  if (user.role === userRole['find job']) {
+  if (user.role !== userRole.admin) {
     if (user.userStatus !== 'approved') {
       throw new AppError(
         403,
-        `Your account is not approved by admin. Still ${user.userStatus}`,
+        `Your account is not approved by admin. Stile ${user.userStatus}`,
       );
     }
   }

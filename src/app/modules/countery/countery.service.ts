@@ -38,6 +38,7 @@ const getAllCountries = async (params: any, options: IOption) => {
       })),
     });
   }
+
   const whereCondition = andCondition.length > 0 ? { $and: andCondition } : {};
 
   const result = await Country.find(whereCondition)
