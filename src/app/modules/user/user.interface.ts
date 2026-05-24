@@ -43,10 +43,15 @@ export interface IUser {
   reviewRatting?: Types.ObjectId[];
   givenReviewRatting?: Types.ObjectId[];
   exprience?: number;
+  /** Find care: selected experience entries (titles from /experience API). */
+  experiences?: string[];
   language?: string[];
   agegroup?: string[];
   education?: string[];
   canHelpWith?: string[];
   professionalSkill?: string[];
   perferences?: string[];
+  /** Find care: uploaded certification document image URLs. */
+  galary?: string[];
+  certifications?: string[];
 }

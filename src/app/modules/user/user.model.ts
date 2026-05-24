@@ -31,7 +31,7 @@ const userSchema = new mongoose.Schema<IUser>(
       enum: ['find job', 'find care', 'admin'],
       required: true,
     },
-    profileImage: [String],
+    profileImage: String,
     bio: String,
     phone: String,
     otp: String,
@@ -81,7 +81,7 @@ const userSchema = new mongoose.Schema<IUser>(
     },
     gender: {
       type: String,
-      enum: ['male', 'female', 'other'],
+      default: '',
     },
     experienceLevel: {
       type: String,
@@ -90,6 +90,7 @@ const userSchema = new mongoose.Schema<IUser>(
     NIDNumber: {
       type: String,
       unique: true,
+      sparse: true,
     },
     countery: { type: String },
     city: { type: String },
@@ -99,18 +100,29 @@ const userSchema = new mongoose.Schema<IUser>(
     stripeAccountId: { type: String },
     reviewRatting: [{ type: mongoose.Schema.ObjectId, ref: 'Review' }],
     givenReviewRatting: [{ type: mongoose.Schema.ObjectId, ref: 'Review' }],
+    certifications: [{ type: String }],
     exprience: Number,
+    experiences: [{ type: String }],
     language: [{ type: String }],
     agegroup: [{ type: String }],
     education: [{ type: String }],
     canHelpWith: [{ type: String }],
     professionalSkill: [{ type: String }],
     perferences: [{ type: String }],
+    certifications: [{ type: String }],
+    galary: [{ type: String }],
   },
   {
     timestamps: true,
   },
 );
+
+userSchema.pre('save', function (next) {
+  if (this.NIDNumber === '') {
+    this.set('NIDNumber', undefined);
+  }
+  next();
+});
 
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
