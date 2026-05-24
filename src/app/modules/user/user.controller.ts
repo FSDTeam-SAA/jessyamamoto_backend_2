@@ -53,14 +53,13 @@ const getUserById = catchAsync(async (req, res) => {
 });
 
 const updateUserById = catchAsync(async (req, res) => {
-  const file = req.file as Express.Multer.File | undefined;
-  // ✅ multipart/form-data হলে data parse, না হলে সরাসরি body
+  const files = req.files as Express.Multer.File[] | undefined;
   const formData = req.body.data ? JSON.parse(req.body.data) : req.body;
 
   const result = await userService.updateUserById(
     req.params.id!,
     formData,
-    file,
+    files,
   );
   sendResponse(res, {
     statusCode: 200,
@@ -95,15 +94,32 @@ const profile = catchAsync(async (req, res) => {
 });
 
 const updateMyProfile = catchAsync(async (req, res) => {
-  const file = req.files as unknown as Express.Multer.File;
+  const uploaded = req.files as
+    | {
+        profileImage?: Express.Multer.File[];
+        galary?: Express.Multer.File[];
+        certifications?: Express.Multer.File[];
+      }
+    | undefined;
+  const profileImage = uploaded?.profileImage?.[0];
+  const galaryFiles = uploaded?.galary ?? [];
+  const certificationFiles = uploaded?.certifications ?? [];
   const formData = req.body.data ? JSON.parse(req.body.data) : req.body;
 
-  const result = await userService.updateMyProfile(
+  let result = await userService.updateMyProfile(
     req.user?.id,
     formData,
-    file,
+    profileImage,
     certificationFiles,
   );
+
+  if (galaryFiles.length > 0) {
+    result = await userService.uploadGalaryImages(
+      req.user?.id!,
+      formData,
+      galaryFiles,
+    );
+  }
   sendResponse(res, {
     statusCode: 200,
     success: true,

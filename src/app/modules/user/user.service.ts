@@ -58,7 +58,8 @@ const createUser = async (payload: IUser) => {
     throw new AppError(400, 'User already exists');
   }
   const idx = Math.floor(Math.random() * 100);
-  payload.profileImage = [`https://avatar.iran.liara.run/public/${idx}.png`];
+  const avatarUrl = `https://avatar.iran.liara.run/public/${idx}.png`;
+  payload.profileImage = [avatarUrl];
   const result = await User.create(payload);
 
   if (!result) {
@@ -161,10 +162,8 @@ const updateUserById = async (
   }
 
   if (file?.length) {
-    const uploadedFiles = await Promise.all(
-      file.map((f) => fileUploader.uploadToCloudinary(f)),
-    );
-    payload.profileImage = uploadedFiles.map((f) => f.url);
+    const { url } = await fileUploader.uploadToCloudinary(file[0]!);
+    payload.profileImage = [url];
   }
 
   const result = await User.findByIdAndUpdate(id, payload, { new: true });
@@ -195,24 +194,90 @@ const profile = async (id: string) => {
   };
 };
 
+const MAX_PROFILE_PHOTOS = 6;
+
+const normalizeProfileGalary = (user: {
+  galary?: string[];
+  profileImage?: string | string[];
+}): string[] => {
+  const urls: string[] = [];
+  const push = (raw?: string | null) => {
+    const u = raw?.trim();
+    if (u && !urls.includes(u)) urls.push(u);
+  };
+  const profile = user.profileImage;
+  if (typeof profile === 'string') {
+    push(profile);
+  } else if (Array.isArray(profile)) {
+    for (const item of profile) push(String(item));
+  }
+  for (const item of user.galary ?? []) {
+    push(String(item));
+  }
+  return urls.slice(0, MAX_PROFILE_PHOTOS);
+};
+
+const syncProfileImageFromGalary = (galary: string[], fallback?: string) => {
+  if (galary.length > 0) return galary[0]!;
+  return fallback?.trim() || '';
+};
+
 const updateMyProfile = async (
   id: string,
   payload: Partial<IUser>,
-  file?: Express.Multer.File[],
+  profileImageFile?: Express.Multer.File,
+  certificationFiles: Express.Multer.File[] = [],
 ) => {
   const user = await User.findById(id);
   if (!user) {
     throw new AppError(404, 'User not found');
   }
 
-  if (file?.length) {
-    const uploadedFiles = await Promise.all(
-      file.map((f) => fileUploader.uploadToCloudinary(f)),
-    );
-    payload.profileImage = uploadedFiles.map((f) => f.url);
+  if (profileImageFile) {
+    const { url } = await fileUploader.uploadToCloudinary(profileImageFile);
+    const galary = normalizeProfileGalary(user);
+    if (galary.length > 0) {
+      galary[0] = url;
+    } else {
+      galary.push(url);
+    }
+    payload.galary = galary.slice(0, MAX_PROFILE_PHOTOS);
+    payload.profileImage = [
+      syncProfileImageFromGalary(payload.galary, url),
+    ];
   }
 
-  // ZIP changed → update location
+  if (Array.isArray(payload.galary)) {
+    const galary = payload.galary
+      .map((u) => String(u).trim())
+      .filter((u) => u.length > 0)
+      .filter((u, i, arr) => arr.indexOf(u) === i)
+      .slice(0, MAX_PROFILE_PHOTOS);
+    payload.galary = galary;
+    const primary = syncProfileImageFromGalary(
+      galary,
+      Array.isArray(user.profileImage)
+        ? user.profileImage[0]
+        : (user.profileImage as string | undefined),
+    );
+    if (primary) {
+      payload.profileImage = [primary];
+    }
+  }
+
+  if (certificationFiles.length > 0) {
+    const uploaded = await Promise.all(
+      certificationFiles.map((file) =>
+        fileUploader.uploadToCloudinary(file),
+      ),
+    );
+    const newUrls = uploaded.map((f) => f.url);
+    const existingUrls = Array.isArray(payload.certifications)
+      ? payload.certifications.filter((u) => u && String(u).trim())
+      : (user.certifications ?? []).map((u) => String(u));
+    payload.certifications = [...existingUrls, ...newUrls];
+  }
+
   if (payload.zip && payload.zip !== user.zip) {
     const locationData = await getLocationFromZip(payload.zip);
     if (locationData) {
@@ -230,6 +295,89 @@ const updateMyProfile = async (
   if (!result) {
     throw new AppError(404, 'User not found');
   }
+
+  return result;
+};
+
+const uploadGalaryImages = async (
+  userId: string,
+  payload: Partial<IUser>,
+  files: Express.Multer.File[],
+) => {
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new AppError(404, 'User not found');
+  }
+
+  let galary = normalizeProfileGalary(user);
+
+  if (Array.isArray(payload.galary)) {
+    galary = payload.galary
+      .map((u) => String(u).trim())
+      .filter((u) => u.length > 0)
+      .filter((u, i, arr) => arr.indexOf(u) === i)
+      .slice(0, MAX_PROFILE_PHOTOS);
+  }
+
+  if (files?.length) {
+    const uploadedFiles = await Promise.all(
+      files.map((file) => fileUploader.uploadToCloudinary(file)),
+    );
+    const newUrls = uploadedFiles.map((file) => file.url);
+    const combined = [...galary, ...newUrls].filter(
+      (u, i, arr) => arr.indexOf(u) === i,
+    );
+    if (combined.length > MAX_PROFILE_PHOTOS) {
+      throw new AppError(
+        400,
+        `Maximum ${MAX_PROFILE_PHOTOS} profile photos allowed`,
+      );
+    }
+    galary = combined;
+  }
+
+  const profileImage = syncProfileImageFromGalary(
+    galary,
+    typeof user.profileImage === 'string'
+      ? user.profileImage
+      : undefined,
+  );
+
+  const result = await User.findByIdAndUpdate(
+    userId,
+    { galary, profileImage },
+    { new: true },
+  );
+
+  if (!result) {
+    throw new AppError(404, 'User not found');
+  }
+
+  return result;
+};
+
+const certificationsUpload = async (
+  userId: string,
+  payload: IUser,
+  files: Express.Multer.File[],
+) => {
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new AppError(404, 'User not found');
+  }
+  if (files?.length) {
+    const uploadedFiles = await Promise.all(
+      files.map((file) => fileUploader.uploadToCloudinary(file)),
+    );
+
+    payload.certifications = uploadedFiles.map((file) => file.url);
+  }
+
+  const result = await User.findByIdAndUpdate(userId, payload, {
+    new: true,
+  });
 
   return result;
 };
@@ -375,4 +523,6 @@ export const userService = {
   createStripeAccount,
   getStripeAccount,
   getMyServicesPaidCategoryIds,
+  uploadGalaryImages,
+  certificationsUpload,
 };

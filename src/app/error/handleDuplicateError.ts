@@ -1,14 +1,15 @@
 import { TErrorSources, TGenericErrorResponse } from '../interface';
 
 const handleDuplicateError = (err: any): TGenericErrorResponse => {
-  const match = err.message.match(/"([^"]*)"/);
-  const extractedMessage = match && match[1];
+  const message = String(err?.message ?? '');
+  const match = message.match(/"([^"]*)"/);
+  const extractedMessage = match?.[1];
   const field =
-    err.keyPattern && typeof err.keyPattern === 'object'
+    err?.keyPattern && typeof err.keyPattern === 'object'
       ? (Object.keys(err.keyPattern)[0] ?? '')
       : '';
   const duplicateValue =
-    err.keyValue && field && field in err.keyValue
+    err?.keyValue && field && field in err.keyValue
       ? String(err.keyValue[field])
       : extractedMessage;
 
@@ -21,10 +22,8 @@ const handleDuplicateError = (err: any): TGenericErrorResponse => {
     },
   ];
 
-  const statusCode = 400;
-
   return {
-    statusCode,
+    statusCode: 400,
     message: 'Duplicate value',
     errorSources,
   };
