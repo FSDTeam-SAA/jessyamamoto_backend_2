@@ -6,7 +6,7 @@ export interface IUser {
   email: string;
   password: string;
   role: 'find job' | 'find care' | 'admin';
-  profileImage?: string;
+  profileImage?: string[];
   bio?: string;
   phone?: string;
   location?: string;
@@ -31,7 +31,7 @@ export interface IUser {
   city: string;
   // job
   status?: 'active' | 'inactive';
-  gender?: string;
+  gender?: 'male' | 'female' | 'other';
   experienceLevel?: 'beginner' | 'intermediate' | 'expert';
   userStatus?: 'approved' | 'reject' | 'panding';
   category?: Types.ObjectId[];

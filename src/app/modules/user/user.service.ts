@@ -58,7 +58,7 @@ const createUser = async (payload: IUser) => {
     throw new AppError(400, 'User already exists');
   }
   const idx = Math.floor(Math.random() * 100);
-  payload.profileImage = `https://avatar.iran.liara.run/public/${idx}.png`;
+  payload.profileImage = [`https://avatar.iran.liara.run/public/${idx}.png`];
   const result = await User.create(payload);
 
   if (!result) {
@@ -153,16 +153,18 @@ const getUserById = async (id: string) => {
 const updateUserById = async (
   id: string,
   payload: IUser,
-  file?: Express.Multer.File,
+  file?: Express.Multer.File[],
 ) => {
   const user = await User.findById(id);
   if (!user) {
     throw new AppError(404, 'User not found');
   }
 
-  if (file) {
-    const { url } = await fileUploader.uploadToCloudinary(file);
-    payload.profileImage = url;
+  if (file?.length) {
+    const uploadedFiles = await Promise.all(
+      file.map((f) => fileUploader.uploadToCloudinary(f)),
+    );
+    payload.profileImage = uploadedFiles.map((f) => f.url);
   }
 
   const result = await User.findByIdAndUpdate(id, payload, { new: true });
@@ -196,16 +198,18 @@ const profile = async (id: string) => {
 const updateMyProfile = async (
   id: string,
   payload: Partial<IUser>,
-  file?: Express.Multer.File,
+  file?: Express.Multer.File[],
 ) => {
   const user = await User.findById(id);
   if (!user) {
     throw new AppError(404, 'User not found');
   }
 
-  if (file) {
-    const { url } = await fileUploader.uploadToCloudinary(file);
-    payload.profileImage = url;
+  if (file?.length) {
+    const uploadedFiles = await Promise.all(
+      file.map((f) => fileUploader.uploadToCloudinary(f)),
+    );
+    payload.profileImage = uploadedFiles.map((f) => f.url);
   }
 
   // ZIP changed → update location
@@ -360,56 +364,6 @@ const getStripeAccount = async (userId: string) => {
   }
 };
 
-const uploadGalaryImages = async (
-  userId: string,
-  payload: IUser,
-  files: Express.Multer.File[],
-) => {
-  const user = await User.findById(userId);
-
-  if (!user) {
-    throw new AppError(404, 'User not found');
-  }
-  if (files?.length) {
-    const uploadedFiles = await Promise.all(
-      files.map((file) => fileUploader.uploadToCloudinary(file)),
-    );
-
-    payload.galary = uploadedFiles.map((file) => file.url);
-  }
-
-  const result = await User.findByIdAndUpdate(userId, payload, {
-    new: true,
-  });
-
-  return result;
-};
-
-const certificationsUpload = async (
-  userId: string,
-  payload: IUser,
-  files: Express.Multer.File[],
-) => {
-  const user = await User.findById(userId);
-
-  if (!user) {
-    throw new AppError(404, 'User not found');
-  }
-  if (files?.length) {
-    const uploadedFiles = await Promise.all(
-      files.map((file) => fileUploader.uploadToCloudinary(file)),
-    );
-
-    payload.certifications = uploadedFiles.map((file) => file.url);
-  }
-
-  const result = await User.findByIdAndUpdate(userId, payload, {
-    new: true,
-  });
-
-  return result;
-};
-
 export const userService = {
   createUser,
   getAllUser,
@@ -421,6 +375,4 @@ export const userService = {
   createStripeAccount,
   getStripeAccount,
   getMyServicesPaidCategoryIds,
-  uploadGalaryImages,
-  certificationsUpload,
 };
