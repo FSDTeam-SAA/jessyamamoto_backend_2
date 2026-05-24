@@ -11,65 +11,40 @@ import pagination, { IOption } from '../../helper/pagenation';
 
 const stripe = new Stripe(config.stripe.secretKey!);
 
-<<<<<<< HEAD
-=======
-const resolveGender = (
-  payload: { gender?: string },
-  user?: { gender?: string } | null,
-): string => {
-  const fromPayload = payload.gender && String(payload.gender).trim();
-  if (fromPayload) return fromPayload;
-  const fromUser = user?.gender && String(user.gender).trim();
-  return fromUser || '';
+const weekDays = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+
+const getAvailableDays = (available?: string | string[]) => {
+  if (!available) return null;
+
+  const rawValue = Array.isArray(available) ? available[0] : available;
+  if (!rawValue) return null;
+
+  const value = rawValue
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]/g, '');
+
+  const todayIndex = new Date().getDay();
+
+  if (value === 'today') {
+    return [weekDays[todayIndex]!];
+  }
+
+  if (value === 'week' || value === 'thisweek') {
+    return weekDays.slice(todayIndex);
+  }
+
+  throw new AppError(400, 'available must be today, week, or thisWeek');
 };
 
-const userProfileProjection = {
-  _id: '$user._id',
-  firstName: '$user.firstName',
-  lastName: '$user.lastName',
-  email: '$user.email',
-  role: '$user.role',
-  profileImage: '$user.profileImage',
-  bio: '$user.bio',
-  phone: '$user.phone',
-  verified: '$user.verified',
-  isSubscription: '$user.isSubscription',
-  subscription: '$user.subscription',
-  subscriptionExpiry: '$user.subscriptionExpiry',
-  category: '$user.category',
-  service: '$user.service',
-  zip: '$user.zip',
-  location: '$user.location',
-  lat: '$user.lat',
-  lng: '$user.lng',
-  status: '$user.status',
-  userStatus: '$user.userStatus',
-  gender: '$user.gender',
-  experienceLevel: '$user.experienceLevel',
-  NIDNumber: '$user.NIDNumber',
-  countery: '$user.countery',
-  city: '$user.city',
-  totalBooking: '$user.totalBooking',
-  completeBooking: '$user.completeBooking',
-  cencleBooking: '$user.cencleBooking',
-  stripeAccountId: '$user.stripeAccountId',
-  reviewRatting: '$user.reviewRatting',
-  givenReviewRatting: '$user.givenReviewRatting',
-  certifications: '$user.certifications',
-  exprience: '$user.exprience',
-  experiences: '$user.experiences',
-  language: '$user.language',
-  agegroup: '$user.agegroup',
-  education: '$user.education',
-  canHelpWith: '$user.canHelpWith',
-  professionalSkill: '$user.professionalSkill',
-  perferences: '$user.perferences',
-  galary: '$user.galary',
-  createdAt: '$user.createdAt',
-  updatedAt: '$user.updatedAt',
-};
-
->>>>>>> 078c425 (add)
 const registerServiceAndSubscription = async (
   payload: any,
   userId?: string,
@@ -524,7 +499,8 @@ const serviceBaseUser = async (
   params: any,
   options: IOption,
 ) => {
-  const { searchTerm, minHourRate, maxHourRate, role, ...filters } = params;
+  const { searchTerm, minHourRate, maxHourRate, role, available, ...filters } =
+    params;
   const { page, limit, skip, sortBy, sortOrder } = pagination(options);
 
   // ✅ Category check
@@ -543,6 +519,15 @@ const serviceBaseUser = async (
     'user.status': 'active',
     status: 'pending',
   };
+
+  const availableDays = getAvailableDays(available);
+  if (availableDays) {
+    match.days = {
+      $elemMatch: {
+        day: { $in: availableDays.map((day) => new RegExp(`^${day}$`, 'i')) },
+      },
+    };
+  }
 
   // ================= SEARCH =================
   if (searchTerm) {
@@ -735,7 +720,8 @@ const serviceUserBaseUser = async (
   params: any,
   options: IOption,
 ) => {
-  const { searchTerm, minHourRate, maxHourRate, ...filters } = params;
+  const { searchTerm, minHourRate, maxHourRate, available, ...filters } =
+    params;
   const { page, limit, skip, sortBy, sortOrder } = pagination(options);
 
   // Logged-in user
@@ -759,6 +745,15 @@ const serviceUserBaseUser = async (
     'user.status': 'active',
     status: 'pending', // only available services
   };
+
+  const availableDays = getAvailableDays(available);
+  if (availableDays) {
+    match.days = {
+      $elemMatch: {
+        day: { $in: availableDays.map((day) => new RegExp(`^${day}$`, 'i')) },
+      },
+    };
+  }
 
   // ================= SEARCH =================
   if (searchTerm) {

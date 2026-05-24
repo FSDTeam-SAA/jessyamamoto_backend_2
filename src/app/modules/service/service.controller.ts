@@ -42,6 +42,7 @@ const serviceBaseUserController = async (req: Request, res: Response) => {
     'perferences',
     'minHourRate',
     'maxHourRate',
+    'available',
   ]);
   const options = pick(req.query, ['limit', 'page', 'sortBy', 'sortOrder']);
   const result = await serviceService.serviceBaseUser(
@@ -85,6 +86,7 @@ const serviceUserBaseUserController = catchAsync(async (req, res) => {
     'perferences',
     'minHourRate',
     'maxHourRate',
+    'available',
   ]);
 
   const userId = req.user.id;
