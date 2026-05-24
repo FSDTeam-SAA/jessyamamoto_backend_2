@@ -11,6 +11,37 @@ import pagination, { IOption } from '../../helper/pagenation';
 
 const stripe = new Stripe(config.stripe.secretKey!);
 
+const weekDays = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+
+const getAvailableDays = (available?: string | string[]) => {
+  if (!available) return null;
+
+  const rawValue = Array.isArray(available) ? available[0] : available;
+  if (!rawValue) return null;
+
+  const value = rawValue.trim().toLowerCase().replace(/[\s_-]/g, '');
+
+  const todayIndex = new Date().getDay();
+
+  if (value === 'today') {
+    return [weekDays[todayIndex]!];
+  }
+
+  if (value === 'week' || value === 'thisweek') {
+    return weekDays.slice(todayIndex);
+  }
+
+  throw new AppError(400, 'available must be today, week, or thisWeek');
+};
+
 const registerServiceAndSubscription = async (
   payload: any,
   userId?: string,
@@ -465,7 +496,8 @@ const serviceBaseUser = async (
   params: any,
   options: IOption,
 ) => {
-  const { searchTerm, minHourRate, maxHourRate, role, ...filters } = params;
+  const { searchTerm, minHourRate, maxHourRate, role, available, ...filters } =
+    params;
   const { page, limit, skip, sortBy, sortOrder } = pagination(options);
 
   // ✅ Category check
@@ -484,6 +516,15 @@ const serviceBaseUser = async (
     'user.status': 'active',
     status: 'pending',
   };
+
+  const availableDays = getAvailableDays(available);
+  if (availableDays) {
+    match.days = {
+      $elemMatch: {
+        day: { $in: availableDays.map((day) => new RegExp(`^${day}$`, 'i')) },
+      },
+    };
+  }
 
   // ================= SEARCH =================
   if (searchTerm) {
@@ -676,7 +717,8 @@ const serviceUserBaseUser = async (
   params: any,
   options: IOption,
 ) => {
-  const { searchTerm, minHourRate, maxHourRate, ...filters } = params;
+  const { searchTerm, minHourRate, maxHourRate, available, ...filters } =
+    params;
   const { page, limit, skip, sortBy, sortOrder } = pagination(options);
 
   // Logged-in user
@@ -700,6 +742,15 @@ const serviceUserBaseUser = async (
     'user.status': 'active',
     status: 'pending', // only available services
   };
+
+  const availableDays = getAvailableDays(available);
+  if (availableDays) {
+    match.days = {
+      $elemMatch: {
+        day: { $in: availableDays.map((day) => new RegExp(`^${day}$`, 'i')) },
+      },
+    };
+  }
 
   // ================= SEARCH =================
   if (searchTerm) {
