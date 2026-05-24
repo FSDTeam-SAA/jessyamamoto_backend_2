@@ -27,7 +27,10 @@ const getAvailableDays = (available?: string | string[]) => {
   const rawValue = Array.isArray(available) ? available[0] : available;
   if (!rawValue) return null;
 
-  const value = rawValue.trim().toLowerCase().replace(/[\s_-]/g, '');
+  const value = rawValue
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]/g, '');
 
   const todayIndex = new Date().getDay();
 
