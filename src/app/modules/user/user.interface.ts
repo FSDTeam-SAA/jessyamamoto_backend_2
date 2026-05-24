@@ -47,6 +47,7 @@ export interface IUser {
   experiences?: string[];
   language?: string[];
   agegroup?: string[];
+  languageLavel?: string;
   education?: string[];
   canHelpWith?: string[];
   professionalSkill?: string[];
