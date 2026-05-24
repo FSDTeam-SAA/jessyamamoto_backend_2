@@ -77,7 +77,9 @@ const userSchema = new mongoose.Schema<IUser>(
     userStatus: {
       type: String,
       enum: ['approved', 'reject', 'panding'],
-      default: 'panding',
+      default: function (this: IUser) {
+        return this.role === 'find job' ? 'panding' : 'approved';
+      },
     },
     gender: {
       type: String,
