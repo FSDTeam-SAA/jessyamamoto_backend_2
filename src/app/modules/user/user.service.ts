@@ -7,6 +7,7 @@ import Payment from '../payment/payment.model';
 import Service from '../service/service.model';
 import { IUser } from './user.interface';
 import User from './user.model';
+import { normalizeUserLanguages } from './user.language.util';
 import config from '../../config';
 import { getLocationFromZip } from '../../helper/geocode';
 
@@ -59,7 +60,7 @@ const createUser = async (payload: IUser) => {
   }
   const idx = Math.floor(Math.random() * 100);
   const avatarUrl = `https://avatar.iran.liara.run/public/${idx}.png`;
-  payload.profileImage = [avatarUrl];
+  payload.profileImage = avatarUrl;
   const result = await User.create(payload);
 
   if (!result) {
@@ -163,7 +164,7 @@ const updateUserById = async (
 
   if (file?.length) {
     const { url } = await fileUploader.uploadToCloudinary(file[0]!);
-    payload.profileImage = [url];
+    payload.profileImage = url;
   }
 
   const result = await User.findByIdAndUpdate(id, payload, { new: true });
@@ -242,9 +243,11 @@ const updateMyProfile = async (
       galary.push(url);
     }
     payload.galary = galary.slice(0, MAX_PROFILE_PHOTOS);
-    payload.profileImage = [
-      syncProfileImageFromGalary(payload.galary, url),
-    ];
+    payload.profileImage = syncProfileImageFromGalary(payload.galary, url);
+  }
+
+  if (payload.language !== undefined) {
+    payload.language = normalizeUserLanguages(payload.language);
   }
 
   if (Array.isArray(payload.galary)) {
@@ -261,7 +264,7 @@ const updateMyProfile = async (
         : (user.profileImage as string | undefined),
     );
     if (primary) {
-      payload.profileImage = [primary];
+      payload.profileImage = primary;
     }
   }
 

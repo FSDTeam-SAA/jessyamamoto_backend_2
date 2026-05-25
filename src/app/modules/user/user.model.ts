@@ -2,6 +2,20 @@ import mongoose from 'mongoose';
 import { IUser } from './user.interface';
 import bcrypt from 'bcryptjs';
 import config from '../../config';
+import { normalizeUserLanguages } from './user.language.util';
+
+const userLanguageSchema = new mongoose.Schema(
+  {
+    language: { type: String, required: true, trim: true },
+    proficiency: {
+      type: String,
+      enum: ['Basic', 'Conversational', 'Fluent', 'Native / Bilingual'],
+      default: 'Fluent',
+    },
+    isNative: { type: Boolean, default: false },
+  },
+  { _id: false },
+);
 
 const userSchema = new mongoose.Schema<IUser>(
   {
@@ -105,7 +119,6 @@ const userSchema = new mongoose.Schema<IUser>(
     exprience: Number,
     experiences: [{ type: String }],
     language: [{ type: String }],
-    languageLavel: { type: String },
     agegroup: [{ type: String }],
     education: [{ type: String }],
     canHelpWith: [{ type: String }],
@@ -123,7 +136,17 @@ userSchema.pre('save', function (next) {
   if (this.NIDNumber === '') {
     this.set('NIDNumber', undefined);
   }
+  if (Array.isArray(this.language) && this.language.length > 0) {
+    this.language = normalizeUserLanguages(this.language) as IUser['language'];
+  }
   next();
+});
+
+userSchema.post('init', function (doc) {
+  if (!Array.isArray(doc.language) || doc.language.length === 0) return;
+  if (typeof doc.language[0] === 'string') {
+    doc.language = normalizeUserLanguages(doc.language) as IUser['language'];
+  }
 });
 
 userSchema.pre('save', async function (next) {

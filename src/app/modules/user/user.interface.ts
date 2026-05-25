@@ -1,4 +1,8 @@
 import { Types } from 'mongoose';
+import { IUserLanguage } from './user.language.util';
+
+export type { IUserLanguage, LanguageProficiency } from './user.language.util';
+export { LANGUAGE_PROFICIENCY_LEVELS } from './user.language.util';
 
 export interface IUser {
   firstName: string;
@@ -6,7 +10,7 @@ export interface IUser {
   email: string;
   password: string;
   role: 'find job' | 'find care' | 'admin';
-  profileImage?: string[];
+  profileImage?: string | string[];
   bio?: string;
   phone?: string;
   location?: string;
@@ -45,7 +49,7 @@ export interface IUser {
   exprience?: number;
   /** Find care: selected experience entries (titles from /experience API). */
   experiences?: string[];
-  language?: string[];
+  language?: IUserLanguage[];
   agegroup?: string[];
   languageLavel?: string;
   education?: string[];
