@@ -40,10 +40,10 @@ export const normalizeUserLanguages = (raw: unknown): IUserLanguage[] => {
       if (!language) continue;
 
       const isNative = o.isNative === true;
-      let proficiency = String(o.proficiency ?? 'Fluent').trim();
-      if (!isProficiency(proficiency)) {
-        proficiency = 'Fluent';
-      }
+      const rawProficiency = String(o.proficiency ?? 'Fluent').trim();
+      let proficiency: LanguageProficiency = isProficiency(rawProficiency)
+        ? rawProficiency
+        : 'Fluent';
       if (isNative) {
         proficiency = 'Native / Bilingual';
       }

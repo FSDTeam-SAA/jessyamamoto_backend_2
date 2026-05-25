@@ -2,7 +2,10 @@ import mongoose from 'mongoose';
 import { IUser } from './user.interface';
 import bcrypt from 'bcryptjs';
 import config from '../../config';
-import { normalizeUserLanguages } from './user.language.util';
+import {
+  IUserLanguage,
+  normalizeUserLanguages,
+} from './user.language.util';
 
 const userLanguageSchema = new mongoose.Schema(
   {
@@ -118,7 +121,7 @@ const userSchema = new mongoose.Schema<IUser>(
     givenReviewRatting: [{ type: mongoose.Schema.ObjectId, ref: 'Review' }],
     exprience: Number,
     experiences: [{ type: String }],
-    language: [{ type: String }],
+    language: [userLanguageSchema],
     agegroup: [{ type: String }],
     education: [{ type: String }],
     canHelpWith: [{ type: String }],
@@ -137,7 +140,20 @@ userSchema.pre('save', function (next) {
     this.set('NIDNumber', undefined);
   }
   if (Array.isArray(this.language) && this.language.length > 0) {
-    this.language = normalizeUserLanguages(this.language) as IUser['language'];
+    this.language = normalizeUserLanguages(this.language) as IUserLanguage[];
+  }
+  next();
+});
+
+userSchema.pre('findOneAndUpdate', function (next) {
+  const update = this.getUpdate() as Record<string, unknown> | null;
+  if (!update || typeof update !== 'object') {
+    return next();
+  }
+  const set = update.$set as Record<string, unknown> | undefined;
+  const target = set ?? update;
+  if (target.language !== undefined) {
+    target.language = normalizeUserLanguages(target.language);
   }
   next();
 });
@@ -145,7 +161,7 @@ userSchema.pre('save', function (next) {
 userSchema.post('init', function (doc) {
   if (!Array.isArray(doc.language) || doc.language.length === 0) return;
   if (typeof doc.language[0] === 'string') {
-    doc.language = normalizeUserLanguages(doc.language) as IUser['language'];
+    doc.language = normalizeUserLanguages(doc.language) as IUserLanguage[];
   }
 });
 
