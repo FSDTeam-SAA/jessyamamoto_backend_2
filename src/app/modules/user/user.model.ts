@@ -129,6 +129,7 @@ const userSchema = new mongoose.Schema<IUser>(
     perferences: [{ type: String }],
     certifications: [{ type: String }],
     galary: [{ type: String }],
+    neighborhoods: { type: String },
   },
   {
     timestamps: true,
