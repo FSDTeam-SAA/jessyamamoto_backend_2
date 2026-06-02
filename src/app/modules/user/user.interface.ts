@@ -59,4 +59,5 @@ export interface IUser {
   /** Find care: uploaded certification document image URLs. */
   galary?: string[];
   certifications?: string[];
+  neighborhoods?: string;
 }

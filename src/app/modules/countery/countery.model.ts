@@ -7,10 +7,13 @@ const CountrySchema = new Schema<ICountry>(
       type: String,
       trim: true,
     },
-    cityName: [{
-      type: String,
-      trim: true,
-    }],
+    cityName: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    image: String,
   },
   { timestamps: true },
 );

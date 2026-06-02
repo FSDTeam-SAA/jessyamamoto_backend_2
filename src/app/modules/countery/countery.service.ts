@@ -1,9 +1,10 @@
 import AppError from '../../error/appError';
+import { fileUploader } from '../../helper/fileUploder';
 import pagination, { IOption } from '../../helper/pagenation';
 import { ICountry } from './countery.interface';
 import Country from './countery.model';
 
-const createCountry = async (payload: ICountry) => {
+const createCountry = async (payload: ICountry, file?: Express.Multer.File) => {
   const isExist = await Country.findOne({
     countryName: payload.countryName,
   });
@@ -12,6 +13,10 @@ const createCountry = async (payload: ICountry) => {
     throw new AppError(400, 'Country already exists');
   }
 
+  if (file) {
+    const { url } = await fileUploader.uploadToCloudinary(file);
+    payload.image = url;
+  }
   return await Country.create(payload);
 };
 
@@ -59,7 +64,16 @@ const getCountry = async (id: string) => {
   return data;
 };
 
-const updateCountry = async (id: string, payload: Partial<ICountry>) => {
+const updateCountry = async (
+  id: string,
+  payload: Partial<ICountry>,
+  file?: Express.Multer.File,
+) => {
+  if (file) {
+    const { url } = await fileUploader.uploadToCloudinary(file);
+    payload.image = url;
+  }
+
   const updated = await Country.findByIdAndUpdate(id, payload, {
     new: true,
     runValidators: true,

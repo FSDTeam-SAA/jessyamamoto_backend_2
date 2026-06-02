@@ -5,7 +5,9 @@ import { countryService } from "./countery.service";
 
 
 const createCountry = catchAsync(async (req, res) => {
-  const result = await countryService.createCountry(req.body);
+  const file = req.file; // Get the uploaded file
+  const data = req.body.data ? JSON.parse(req.body.data) : req.body; // Parse data if it's sent as a string
+  const result = await countryService.createCountry(data, file);
 
   sendResponse(res, {
     statusCode: 201,
@@ -42,7 +44,9 @@ const getCountryById = catchAsync(async (req, res) => {
 });
 
 const updateCountry = catchAsync(async (req, res) => {
-  const result = await countryService.updateCountry(req.params.id!, req.body);
+  const file = req.file; // Get the uploaded file
+  const data = req.body.data ? JSON.parse(req.body.data) : req.body; // Parse data if it's sent as a string
+  const result = await countryService.updateCountry(req.params.id!, data, file);
 
   sendResponse(res, {
     statusCode: 200,
