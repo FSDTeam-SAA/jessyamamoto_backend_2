@@ -26,7 +26,7 @@ const getAllCountries = async (params: any, options: IOption) => {
 
   const andCondition: any[] = [];
 
-  const searchableFields = ['countryName', 'cityName'];
+  const searchableFields = ['countryName', 'cityName', 'neighborhoods'];
 
   if (searchTerm) {
     andCondition.push({
@@ -125,6 +125,43 @@ const removeCityFromCountry = async (id: string, cityName: string) => {
   return updated;
 };
 
+const addNeighborhoodToCountry = async (id: string, neighborhood: string) => {
+  const country = await Country.findById(id);
+  if (!country) throw new AppError(404, 'Country not found');
+
+  if (country.neighborhoods.includes(neighborhood)) {
+    throw new AppError(400, 'Neighborhood already exists in this country');
+  }
+
+  const updated = await Country.findByIdAndUpdate(
+    id,
+    { $push: { neighborhoods: neighborhood } },
+    { new: true, runValidators: true },
+  );
+
+  return updated;
+};
+
+const removeNeighborhoodFromCountry = async (
+  id: string,
+  neighborhood: string,
+) => {
+  const country = await Country.findById(id);
+  if (!country) throw new AppError(404, 'Country not found');
+
+  if (!country.neighborhoods.includes(neighborhood)) {
+    throw new AppError(404, 'Neighborhood not found in this country');
+  }
+
+  const updated = await Country.findByIdAndUpdate(
+    id,
+    { $pull: { neighborhoods: neighborhood } },
+    { new: true },
+  );
+
+  return updated;
+};
+
 export const countryService = {
   createCountry,
   getAllCountries,
@@ -133,4 +170,6 @@ export const countryService = {
   deleteCountry,
   addCityToCountry,
   removeCityFromCountry,
+  addNeighborhoodToCountry,
+  removeNeighborhoodFromCountry,
 };

@@ -18,7 +18,12 @@ const createCountry = catchAsync(async (req, res) => {
 });
 
 const getAllCountry = catchAsync(async (req, res) => {
-  const params = pick(req.query, ["searchTerm", "countryName", "cityName"]);
+  const params = pick(req.query, [
+    "searchTerm",
+    "countryName",
+    "cityName",
+    "neighborhoods",
+  ]);
   const options = pick(req.query, ["page", "limit", "sortBy", "sortOrder"]);
 
   const result = await countryService.getAllCountries(params, options);
@@ -92,6 +97,36 @@ const removeCity = catchAsync(async (req, res) => {
   });
 });
 
+const addNeighborhood = catchAsync(async (req, res) => {
+  const { neighborhood } = req.body;
+  const result = await countryService.addNeighborhoodToCountry(
+    req.params.id!,
+    neighborhood,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Neighborhood added successfully',
+    data: result,
+  });
+});
+
+const removeNeighborhood = catchAsync(async (req, res) => {
+  const { neighborhood } = req.body;
+  const result = await countryService.removeNeighborhoodFromCountry(
+    req.params.id!,
+    neighborhood,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Neighborhood removed successfully',
+    data: result,
+  });
+});
+
 
 export const countryController = {
   createCountry,
@@ -101,4 +136,6 @@ export const countryController = {
   deleteCountry,
   addCity,
   removeCity,
+  addNeighborhood,
+  removeNeighborhood,
 };
