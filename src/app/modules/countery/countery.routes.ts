@@ -18,6 +18,16 @@ router.patch(
   auth(userRole.admin),
   countryController.removeCity,
 );
+router.patch(
+  '/:id/neighborhood/add',
+  auth(userRole.admin),
+  countryController.addNeighborhood,
+);
+router.patch(
+  '/:id/neighborhood/remove',
+  auth(userRole.admin),
+  countryController.removeNeighborhood,
+);
 router.get('/:id', countryController.getCountryById);
 router.put(
   '/:id',

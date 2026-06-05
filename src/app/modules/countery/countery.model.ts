@@ -13,6 +13,12 @@ const CountrySchema = new Schema<ICountry>(
         trim: true,
       },
     ],
+    neighborhoods: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
     image: String,
   },
   { timestamps: true },
