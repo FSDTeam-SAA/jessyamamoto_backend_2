@@ -1,7 +1,7 @@
 import AppError from '../../error/appError';
 import { fileUploader } from '../../helper/fileUploder';
 import pagination, { IOption } from '../../helper/pagenation';
-import { ICountry } from './countery.interface';
+import { ICity, ICountry } from './countery.interface';
 import Country from './countery.model';
 
 const createCountry = async (payload: ICountry, file?: Express.Multer.File) => {
@@ -26,7 +26,11 @@ const getAllCountries = async (params: any, options: IOption) => {
 
   const andCondition: any[] = [];
 
-  const searchableFields = ['countryName', 'cityName', 'neighborhoods'];
+  const searchableFields = [
+    'countryName',
+    'cities.cityName',
+    'cities.neighborhoods',
+  ];
 
   if (searchTerm) {
     andCondition.push({
@@ -39,7 +43,11 @@ const getAllCountries = async (params: any, options: IOption) => {
   if (Object.keys(filterData).length) {
     andCondition.push({
       $and: Object.entries(filterData).map(([field, value]) => ({
-        [field]: value,
+        [field === 'cityName'
+          ? 'cities.cityName'
+          : field === 'neighborhoods'
+            ? 'cities.neighborhoods'
+            : field]: value,
       })),
     });
   }
@@ -90,76 +98,83 @@ const deleteCountry = async (id: string) => {
   return deleted;
 };
 
-const addCityToCountry = async (id: string, cityName: string) => {
+const addCityToCountry = async (id: string, city: ICity) => {
   const country = await Country.findById(id);
   if (!country) throw new AppError(404, 'Country not found');
 
-  if (country.cityName.includes(cityName)) {
+  if (country.cities.some((item) => item.cityName === city.cityName)) {
     throw new AppError(400, 'City already exists in this country');
   }
 
   const updated = await Country.findByIdAndUpdate(
     id,
-    { $push: { cityName: cityName } },
+    { $push: { cities: city } },
     { new: true, runValidators: true },
   );
 
   return updated;
 };
 
-// একটি city মুছে ফেলা
 const removeCityFromCountry = async (id: string, cityName: string) => {
   const country = await Country.findById(id);
   if (!country) throw new AppError(404, 'Country not found');
 
-  if (!country.cityName.includes(cityName)) {
+  if (!country.cities.some((city) => city.cityName === cityName)) {
     throw new AppError(404, 'City not found in this country');
   }
 
   const updated = await Country.findByIdAndUpdate(
     id,
-    { $pull: { cityName: cityName } },
+    { $pull: { cities: { cityName } } },
     { new: true },
   );
 
   return updated;
 };
 
-const addNeighborhoodToCountry = async (id: string, neighborhood: string) => {
-  const country = await Country.findById(id);
-  if (!country) throw new AppError(404, 'Country not found');
-
-  if (country.neighborhoods.includes(neighborhood)) {
-    throw new AppError(400, 'Neighborhood already exists in this country');
-  }
-
-  const updated = await Country.findByIdAndUpdate(
-    id,
-    { $push: { neighborhoods: neighborhood } },
-    { new: true, runValidators: true },
-  );
-
-  return updated;
-};
-
-const removeNeighborhoodFromCountry = async (
+const addNeighborhoodToCountry = async (
   id: string,
+  cityName: string,
   neighborhood: string,
 ) => {
   const country = await Country.findById(id);
   if (!country) throw new AppError(404, 'Country not found');
 
-  if (!country.neighborhoods.includes(neighborhood)) {
-    throw new AppError(404, 'Neighborhood not found in this country');
+  const city = country.cities.find((item) => item.cityName === cityName);
+  if (!city) {
+    throw new AppError(404, 'City not found in this country');
   }
 
-  const updated = await Country.findByIdAndUpdate(
-    id,
-    { $pull: { neighborhoods: neighborhood } },
-    { new: true },
+  if (city.neighborhoods.includes(neighborhood)) {
+    throw new AppError(400, 'Neighborhood already exists in this city');
+  }
+
+  city.neighborhoods.push(neighborhood);
+  return await country.save();
+};
+
+const removeNeighborhoodFromCountry = async (
+  id: string,
+  cityName: string,
+  neighborhood: string,
+) => {
+  const country = await Country.findById(id);
+  if (!country) throw new AppError(404, 'Country not found');
+
+  const city = country.cities.find((item) => item.cityName === cityName);
+  if (!city) {
+    throw new AppError(404, 'City not found in this country');
+  }
+
+  if (!city.neighborhoods.includes(neighborhood)) {
+    throw new AppError(404, 'Neighborhood not found in this city');
+  }
+
+  city.neighborhoods = city.neighborhoods.filter(
+    (item) => item !== neighborhood,
   );
 
-  return updated;
+  return await country.save();
 };
 
 export const countryService = {
