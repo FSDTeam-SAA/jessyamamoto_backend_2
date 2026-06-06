@@ -24,7 +24,17 @@ router.patch(
   countryController.addNeighborhood,
 );
 router.patch(
+  '/:id/city/:cityName/neighborhood/add',
+  auth(userRole.admin),
+  countryController.addNeighborhood,
+);
+router.patch(
   '/:id/neighborhood/remove',
+  auth(userRole.admin),
+  countryController.removeNeighborhood,
+);
+router.patch(
+  '/:id/city/:cityName/neighborhood/remove',
   auth(userRole.admin),
   countryController.removeNeighborhood,
 );

@@ -1,7 +1,8 @@
-import pick from "../../helper/pick";
-import catchAsync from "../../utils/catchAsycn";
-import sendResponse from "../../utils/sendResponse";
-import { countryService } from "./countery.service";
+import AppError from '../../error/appError';
+import pick from '../../helper/pick';
+import catchAsync from '../../utils/catchAsycn';
+import sendResponse from '../../utils/sendResponse';
+import { countryService } from './countery.service';
 
 
 const createCountry = catchAsync(async (req, res) => {
@@ -12,26 +13,26 @@ const createCountry = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: 201,
     success: true,
-    message: "Country created successfully",
+    message: 'Country created successfully',
     data: result,
   });
 });
 
 const getAllCountry = catchAsync(async (req, res) => {
   const params = pick(req.query, [
-    "searchTerm",
-    "countryName",
-    "cityName",
-    "neighborhoods",
+    'searchTerm',
+    'countryName',
+    'cityName',
+    'neighborhoods',
   ]);
-  const options = pick(req.query, ["page", "limit", "sortBy", "sortOrder"]);
+  const options = pick(req.query, ['page', 'limit', 'sortBy', 'sortOrder']);
 
   const result = await countryService.getAllCountries(params, options);
 
   sendResponse(res, {
     statusCode: 200,
     success: true,
-    message: "Countries fetched successfully",
+    message: 'Countries fetched successfully',
     meta: result.meta,
     data: result.data,
   });
@@ -43,7 +44,7 @@ const getCountryById = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: 200,
     success: true,
-    message: "Country fetched successfully",
+    message: 'Country fetched successfully',
     data: result,
   });
 });
@@ -56,7 +57,7 @@ const updateCountry = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: 200,
     success: true,
-    message: "Country updated successfully",
+    message: 'Country updated successfully',
     data: result,
   });
 });
@@ -67,15 +68,22 @@ const deleteCountry = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: 200,
     success: true,
-    message: "Country deleted successfully",
+    message: 'Country deleted successfully',
     data: result,
   });
 });
 
 
 const addCity = catchAsync(async (req, res) => {
-  const { cityName } = req.body;
-  const result = await countryService.addCityToCountry(req.params.id!, cityName);
+  const { cityName, neighborhoods = [] } = req.body;
+  if (!cityName) {
+    throw new AppError(400, 'cityName is required');
+  }
+
+  const result = await countryService.addCityToCountry(req.params.id!, {
+    cityName,
+    neighborhoods,
+  });
 
   sendResponse(res, {
     statusCode: 200,
@@ -87,7 +95,14 @@ const addCity = catchAsync(async (req, res) => {
 
 const removeCity = catchAsync(async (req, res) => {
   const { cityName } = req.body;
-  const result = await countryService.removeCityFromCountry(req.params.id!, cityName);
+  if (!cityName) {
+    throw new AppError(400, 'cityName is required');
+  }
+
+  const result = await countryService.removeCityFromCountry(
+    req.params.id!,
+    cityName,
+  );
 
   sendResponse(res, {
     statusCode: 200,
@@ -98,9 +113,18 @@ const removeCity = catchAsync(async (req, res) => {
 });
 
 const addNeighborhood = catchAsync(async (req, res) => {
+  const cityName = req.params.cityName || req.body.cityName;
   const { neighborhood } = req.body;
+  if (!cityName) {
+    throw new AppError(400, 'cityName is required');
+  }
+  if (!neighborhood) {
+    throw new AppError(400, 'neighborhood is required');
+  }
+
   const result = await countryService.addNeighborhoodToCountry(
     req.params.id!,
+    cityName,
     neighborhood,
   );
 
@@ -113,9 +137,18 @@ const addNeighborhood = catchAsync(async (req, res) => {
 });
 
 const removeNeighborhood = catchAsync(async (req, res) => {
+  const cityName = req.params.cityName || req.body.cityName;
   const { neighborhood } = req.body;
+  if (!cityName) {
+    throw new AppError(400, 'cityName is required');
+  }
+  if (!neighborhood) {
+    throw new AppError(400, 'neighborhood is required');
+  }
+
   const result = await countryService.removeNeighborhoodFromCountry(
     req.params.id!,
+    cityName,
     neighborhood,
   );
 

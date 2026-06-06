@@ -1,28 +1,42 @@
 import mongoose, { Schema } from 'mongoose';
-import { ICountry } from './countery.interface';
+import { ICity, ICountry } from './countery.interface';
+
+const CitySchema = new Schema<ICity>(
+  {
+    cityName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    neighborhoods: [
+      {
+        type: String,
+        required: true,
+        trim: true,
+      },
+    ],
+  },
+  { _id: false },
+);
 
 const CountrySchema = new Schema<ICountry>(
   {
     countryName: {
       type: String,
+      required: true,
       trim: true,
     },
-    cityName: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
-    neighborhoods: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
-    image: String,
+    cities: {
+      type: [CitySchema],
+      default: [],
+    },
+    image: {
+      type: String,
+      trim: true,
+    },
   },
   { timestamps: true },
 );
 
-const Country = mongoose.model<ICountry>('Country', CountrySchema);
+export const Country = mongoose.model<ICountry>('Country', CountrySchema);
 export default Country;
