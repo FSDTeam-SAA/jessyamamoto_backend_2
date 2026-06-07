@@ -10,8 +10,14 @@ const app = express();
 // Middlewares
 const allowedOrigins = [
   'https://jetsetcares.org',
+  'https://www.jetsetcares.org',
   'https://dashboard.jetsetcares.org',
 ];
+
+app.use((req, res, next) => {
+  console.log('Origin:', req.headers.origin);
+  next();
+});
 
 app.use(
   cors({
